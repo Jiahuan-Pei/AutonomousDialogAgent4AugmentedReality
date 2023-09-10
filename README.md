@@ -186,4 +186,4 @@ lc-serve deploy jcloud agent_cli
 [1] LangChain Chat with Custom Tools, Functions and Memory [[blog]](https://medium.com/@gil.fernandes/langchain-chat-with-custom-tools-functions-and-memory-e34daa331aa7)
 [[repo]](https://github.com/gilfernandes/chat_functions)
 
-[2] BlockDream
+[2] BlockDream [[repo]](https://github.com/kukeya/2023-SWContest/tree/main)
