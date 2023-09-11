@@ -1,11 +1,11 @@
 # 1. Introduction
-Enlighten by the state-of-the-art [LLM Powered Autonomous Agents](https://lilianweng.github.io/posts/2023-06-23-agent/), we develop an Augmented Reality Training Assistant (ARTA) workflow based on [LangChain](https://github.com/langchain-ai/langchain) framework. 
+We develop an Augmented Reality Training Assistant (ARTA) workflow based on [LangChain](https://github.com/langchain-ai/langchain) framework, enlighten by the state-of-the-art [LLM Powered Autonomous Agents](https://lilianweng.github.io/posts/2023-06-23-agent/). 
 In this work, we aim to introduce Large Language Models (LLMs) as human-like "brain" to augment Argument Reality (AR) system with artificial Intelligence; 
 and vice versa, we enable Argument Reality (AR) system to provide services by external API tools to augment general LLMs specifically for the ARTA use case, so that AR system can better plan which tool to use and when to use based on fully understanding users' need.
 Therefore, there are three key phrase as follows:
-- Phase 1: Development of the workflow using general LLMs.
+- Phase 1: Develop the workflow using general LLMs (such as "gpt-3.5-turbo-16k-0613"). See code in [LEGO_dialogue_agent_openai](LEGO_dialogue_agent_openai)
 - Phase 2: Create ARTA dataset by asking trainees to play with assistant using the workflow.
-- Phase 3: Finetune LLMs and replace it in the workflow.
+- Phase 3: Finetune LLMs (such as llama2) and replace it in the workflow. See code in [LEGO_dialogue_agent_llama2](LEGO_dialogue_agent_llama2)
 
 ![workflow](./image/ARTA-LEGO-workflow.png)
 
@@ -91,7 +91,7 @@ python agent_cli.py
 ```
 
 # 4. Implementation details
-We choose a toy LEGO AR system, namely [BlockDream](https://github.com/kukeya/2023-SWContest/tree/main) , as an example to show how this workflow functions for ARTA use case.
+We choose a toy LEGO AR system, namely [BrickDream](https://github.com/kukeya/2023-SWContest/tree/main) , as an example to show how this workflow functions for ARTA use case.
 The AR system can be more complex and practical ones such as [HOLO](https://holo-light.com/) systems.
 
 ## 4.1 Equip DA with APIWrapper to call customized AR tools
@@ -176,9 +176,9 @@ jina auth login
 lc-serve deploy jcloud agent_cli
 ```
 
-## Agent Loop
+## 4.3 Agent Loop
 ![openai-agent-loop.jpg](image%2Fopenai-agent-loop.jpg)
-## LEGO ARTA Deployment
+## 4.4 LEGO ARTA Deployment
 ![ARTA-LEGO-deployment.jpg](image%2FARTA-LEGO-deployment.jpg)
 
 
@@ -186,4 +186,4 @@ lc-serve deploy jcloud agent_cli
 [1] LangChain Chat with Custom Tools, Functions and Memory [[blog]](https://medium.com/@gil.fernandes/langchain-chat-with-custom-tools-functions-and-memory-e34daa331aa7)
 [[repo]](https://github.com/gilfernandes/chat_functions)
 
-[2] BlockDream [[repo]](https://github.com/kukeya/2023-SWContest/tree/main)
+[2] BrickDream [[repo]](https://github.com/kukeya/2023-SWContest/tree/main)
