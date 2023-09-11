@@ -1,12 +1,5 @@
 ```javascript showLineNumbers highlightLine=1-5,8
 /home/jpei/anaconda3/envs/vox/bin/python /home/jpei/ARTA/chat_functions/agent_cli.py 
-/home/jpei/anaconda3/envs/vox/lib/python3.11/site-packages/deeplake/util/check_latest_version.py:32: UserWarning: A newer version of deeplake (3.6.24) is available. It's recommended that you update to the latest version using `pip install -U deeplake`.
-  warnings.warn(
-OPENAI_API_KEY=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
-2023-09-08 14:54:45.765783: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-2023-09-08 14:54:46.288352: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-Type Your query  ('q' to exit):WARNING: your terminal doesn't support cursor position requests (CPR).
 Type Your query  ('q' to exit):Hi can you be my trainer to teach me how to assemble a LEGO car?
 Response: >>> 
 [chain/start] [1:chain:AgentExecutor] Entering Chain run with input:
