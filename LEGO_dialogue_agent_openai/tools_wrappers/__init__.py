@@ -1,2 +1,3 @@
 from tools_wrappers.events_api_wrapper import EventsAPIWrapper
-from tools_wrappers.lego_api_wrapper import ARSystemAPIWrapper
+from tools_wrappers.lego_api_wrapper import LegoAPIWrapper
+from tools_wrappers.vr2gather_api_wrapper import VR2GatherAPIWrapper

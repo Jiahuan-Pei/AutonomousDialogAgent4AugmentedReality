@@ -7,7 +7,7 @@ import urllib.parse
 import inspect
 
 
-class ARSystemAPIWrapper:
+class LegoAPIWrapper:
     """
     all functions in AR system can be used by DA as external tools
     """
@@ -43,7 +43,7 @@ class ARSystemAPIWrapper:
 
 
 if __name__ == "__main__":
-    ar_api = ARSystemAPIWrapper()
+    ar_api = LegoAPIWrapper()
     print(ar_api.callStartAssemble())
     print(ar_api.callShrink())
     print(ar_api.callEnlarge())

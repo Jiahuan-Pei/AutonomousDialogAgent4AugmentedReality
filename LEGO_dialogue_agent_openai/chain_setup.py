@@ -42,13 +42,14 @@ def setup_memory() -> Tuple[Dict, ConversationBufferMemory]:
 
     return agent_kwargs, memory
 
+
 def setup_agent() -> AgentExecutor:
     """
     Sets up the tools for a function based chain.
     """
     cfg = Config()
 
-    lego_toolkits = tools_wrappers.ARSystemAPIWrapper()  # a set of customized LEGO tools
+    lego_toolkits = tools_wrappers.LegoAPIWrapper()  # a set of customized LEGO tools
 
     tools = [
         StructuredTool.from_function(

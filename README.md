@@ -116,14 +116,14 @@ We develop an API service  ([agent_cli.py](LEGO_dialogue_agent_openai%2Fagent_cl
 ### Step 1: Refactor your code to function(s) that should be served with @serving decorator
 ```shell
 @serving
-def ask(query: str) -> str:
+def ask(input: str) -> str:
     agent_executor: AgentExecutor = setup_agent()
     try:
-        response = agent_executor.run(query, callbacks=[AgentCallbackHandler()])
+        response = agent_executor.run(input, callbacks=[AgentCallbackHandler()])
         print(get_colored_text("Response: >>> ", "green"))
         print(get_colored_text(response, "green"))
     except Exception as e:
-        print(get_colored_text(f"Failed to process {query}", "red"))
+        print(get_colored_text(f"Failed to process {input}", "red"))
         print(get_colored_text(f"Error {e}", "red"))
     return response
 ```
@@ -137,14 +137,14 @@ lc-serve deploy local agent_cli
 ```
 Note that **agent_cli** is the name of the module ([agent_cli.py](LEGO_dialogue_agent_openai%2Fagent_cli.py)) that contains the `ask` function.
 
-Second, test our local API with a customized query as an input with a cURL command.
+Second, test our local API with a customized input as an input with a cURL command.
 ```shell input
 curl -X 'POST' \
   'http://localhost:8080/ask' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
   -d '{
-  "query": "Can you start to teach me how to assemble a LEGO car?",
+  "input": "Can you start to teach me how to assemble a LEGO car?",
   "envs": {
     "OPENAI_API_KEY": "'"${OPENAI_API_KEY}"'"
   }
@@ -160,7 +160,7 @@ curl -X 'POST' \
 ```
 
 - `POST /ask` is generated from ask function defined in agent_cli.py.
-- `query` is an argrment defined in `ask` function.
+- `input` is an argrment defined in `ask` function.
 - `envs` is a dictionary of environment variables that will be passed to all the functions decorated with `@serving` decorator.
 - return type of `ask` function is `str`. So, `result` would carry the return `value` of ask function.
 - If there is an error, `error` would carry the error message.
