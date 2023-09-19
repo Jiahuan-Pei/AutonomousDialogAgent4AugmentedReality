@@ -63,7 +63,7 @@ def setup_agent() -> AgentExecutor:
             description='Useful tool for calling LEGO AR system to move to the next assembly step.'
         ),
         StructuredTool.from_function(
-            func=lego_toolkits.callNextStep,
+            func=lego_toolkits.callFrontStep,
             name='callFrontStep',
             description='Useful tool for calling LEGO AR system to go back to the previous assembly step.'
         ),
