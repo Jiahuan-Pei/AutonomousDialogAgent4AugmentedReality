@@ -16,19 +16,19 @@ langchain.debug = True
 from lcserve import serving
 
 @serving
-def ask(input: str) -> str:
+def ask(query: str) -> str:
     """
     This is the API for external systems (such as VR) ask DA their questions.
-    :param input: transcript of the question from
+    :param query: transcript of the question from
     :return: a response object (see https://github.com/jina-ai/langchain-serve/blob/main/examples/rest/README.md)
     """
     agent_executor: AgentExecutor = setup_agent()
     try:
-        response = agent_executor.run(input, callbacks=[AgentCallbackHandler()])
+        response = agent_executor.run(query, callbacks=[AgentCallbackHandler()])
         print(get_colored_text("Response: >>> ", "green"))
         print(get_colored_text(response, "green"))
     except Exception as e:
-        print(get_colored_text(f"Failed to process {input}", "red"))
+        print(get_colored_text(f"Failed to process {query}", "red"))
         print(get_colored_text(f"Error {e}", "red"))
     return response
 
