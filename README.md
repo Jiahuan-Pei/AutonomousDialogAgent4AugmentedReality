@@ -84,10 +84,16 @@ pip install .
 
 [//]: # (```)
 
-# 3. Qucik start by running an interactive demo
+# 3. Qucik start
+### Option 1: Running an interactive demo
 ```shell
 cd ./LEGO_dialogue_agent_openai
 python agent_cli.py
+```
+
+### Option 2: Create a beautiful web app by streamlit
+```bash
+streamlit run agent_streamlit.py --server.port 8080
 ```
 
 # 4. Implementation details
@@ -130,6 +136,7 @@ def ask(input: str) -> str:
 
 ### Step 2: Create a `requirements.txt` file in your app directory ([LEGO_dialogue_agent_openai](LEGO_dialogue_agent_openai)) to ensure all necessary dependencies are installed
 
+
 ### Step 3: Run lc-serve deploy local app to test your API locally
 First, start the server.
 ```shell
@@ -141,6 +148,19 @@ Second, test our local API with a customized input as an input with a cURL comma
 ```shell input
 curl -X 'POST' \
   'http://localhost:8080/ask' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "input": "Can you start to teach me how to assemble a LEGO car?",
+  "envs": {
+    "OPENAI_API_KEY": "'"${OPENAI_API_KEY}"'"
+  }
+}'
+```
+
+```shell input
+curl -X 'POST' \
+  'http://192.16.201.141:8080/ask' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
   -d '{

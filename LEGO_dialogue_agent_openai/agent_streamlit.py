@@ -40,12 +40,16 @@ def init_stream_lit():
 
 def intro_text():
     with st.expander("Click to see application info:"):
-        st.write(f"""Ask questions about:
-- [Wikipedia](https://www.wikipedia.org/) Content
-- Scientific publications ([pubmed](https://pubmed.ncbi.nlm.nih.gov) and [arxiv](https://arxiv.org))
-- Mathematical calculations
-- Search engine content ([DuckDuckGo](https://duckduckgo.com/))
-- Meditation related events (Custom Tool)
+        st.write(f"""Hi, I am your digital trainer to teach you how to assemble a LEGO car. Feel free to ask me open questions or questions about LEGO Assemble Task. We are providng the following functional services in our XR application.
+        1	StartAssemble	to initiate the assembly process.
+        2	NextStep	to move to the next assembly step.
+        3	FrontStep	to go back to the previous assembly step.
+        4	Explode	to trigger an explosion for detailed viewing.
+        5	Recover	to restore the initial state of the VR objects after explosion.
+        6	FinishedVideo	to end the assembly process and show a video of the assembled LEGO bricks.
+        7	ReShow	to repeat the current assembly step.
+        8	Enlarge	to enlarge or zoom out the current object.
+        9	Shrink	to shrink or zoom in the current object.
     """)
         
 @st.cache_resource()
