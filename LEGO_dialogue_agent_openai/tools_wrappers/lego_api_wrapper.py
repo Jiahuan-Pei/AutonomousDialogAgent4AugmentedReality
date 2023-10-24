@@ -1,79 +1,168 @@
-"""
-We implement APIs / interfaces to call the services and functions provided by AR system (Block Dream) for LEGO brick assembly task.
-https://github.com/kukeya/2023-SWContest/tree/main/unity-script/*.cs
-"""
-import requests
-import urllib.parse
-import inspect
-import socket
+# import os
+# import json
+# import asyncio
+# import websockets
+#
+#
+# class LegoAPIWrapper:
+#     def __init__(self):
+#         self.server_host = "localhost"
+#         self.server_port = 8080
+#         self.server_name = 'AR_LEGO'
+#         self.description_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "lego_function_description.json")
+#         self.url = f"ws://{self.server_host}:{self.server_port}/{self.server_name}"
+#
+#         try:
+#             with open(self.description_file, "r") as file:
+#                 self.descriptions = json.load(file)
+#         except FileNotFoundError:
+#             print(f'description file does not exist at {self.description_file}')
+#             self.descriptions = {}
+#
+#         # Set class methods for LEGO functions
+#         for function_name, description in self.descriptions.items():
+#             class_method = self._create_class_method(function_name, description)
+#             setattr(self.__class__, function_name, class_method)
+#
+#     async def _unity_function(self, function_name, **kwargs):
+#         async with websockets.connect(self.url) as websocket:
+#             print(f"DA Python: Send Function {function_name}")
+#             await websocket.send(function_name)
+#             response = await websocket.recv()
+#             print(f"DA Python: Get Response: {response}\n")
+#         return response
+#
+#     async def _asyncio_run(self, coroutine):
+#         return await asyncio.run(coroutine)
+#
+#     @classmethod
+#     async def _unity_function_wrapper(cls, function_name, **kwargs):
+#         try:
+#             return await cls()._unity_function(function_name, **kwargs)  # Pass 'self' as the first argument
+#         except websockets.ConnectionClosedError:
+#             err_msg = f"DA Python: WebSocket connection to Unity Function {function_name} closed unexpectedly."
+#             print(err_msg)
+#             return None
+#
+#     @classmethod
+#     def _create_class_method(cls, function_name, description):
+#         async def class_method(self, **kwargs):  # Pass 'self' as the first parameter
+#             """
+#                 Create a class method in the same way
+#                 Example:
+#                     usage:
+#                         result = LegoAPIWrapper.FunctionName()
+#             """
+#             coroutine = await cls._unity_function_wrapper(function_name, **kwargs)
+#             return self._asyncio_run(coroutine)
+#         # Set the docstring here to include the function description
+#         class_method.__doc__ = f"DA Python Function Doc:\n{function_name}:{description}\nUsage: result = LegoAPIWrapper.{function_name}()"
+#         return class_method
+#
+#     def __getattr__(self, function_name):
+#         if function_name in self.descriptions:
+#             return self._create_class_method(function_name, self.descriptions[function_name])
+#         else:
+#             raise AttributeError(f"'{type(self).__name__}' object has no attribute '{function_name}'")
+#
+#
+# def test_api():
+#
+#     lego_api = LegoAPIWrapper()
+#     result1 = lego_api.StartAssemble()
+#     if result1 is not None:
+#         print(lego_api.StartAssemble.__doc__)
+#
+#     print('='*50)
+#
+#     async def run_example():
+#         result1 = await lego_api.StartAssemble()  # Call a function directly
+#         if result1 is not None:
+#             print(lego_api.StartAssemble.__doc__)
+#
+#     asyncio.run(run_example())  # Use asyncio.run to start the event loop
+#
+#
+# if __name__ == "__main__":
+#     pass
+#     # Run the simulated client (lego_app_simulated_client.py) and then test the results.
+#     test_api()
+#
 
-"""
-When to Choose Sockets:
-- Use sockets when you need low-latency, real-time, or continuous communication.
-- For scenarios like online games, chat applications, live streaming, or any application where rapid data transfer is crucial.
-- When full-duplex communication is essential, and you want to maintain an open connection.
+import os
+import json
+import asyncio
+import websockets
 
-When to Choose RESTful API:
-- Use RESTful APIs when you need a simple and web-friendly way to exchange data between applications.
-- If you want to create an HTTP-based API that other services or clients can access.
-- When real-time, low-latency communication is not a strict requirement.
-"""
 
 class LegoAPIWrapper:
-    """
-    all functions in AR system can be used by DA as external tools
-    """
     def __init__(self):
-        self.unity_host = "your_unity_host_ip"
-        self.unity_port = 80
+        self.server_host = "localhost"
+        self.server_port = 8080
+        self.server_name = 'AR_LEGO'
+        self.description_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "lego_function_description.json")
+        self.url = f"ws://{self.server_host}:{self.server_port}/{self.server_name}"
 
-    def _call_unity_function_rest_api(self, function_name):
-        url = f"{self.unity_host}:{self.unity_port}/{function_name}"
-        response = requests.post(url)
+        try:
+            with open(self.description_file, "r") as file:
+                self.descriptions = json.load(file)
+        except FileNotFoundError:
+            print(f'description file does not exist at {self.description_file}')
+            self.descriptions = {}
 
-        if response.status_code == 200:
-            print(f"Unity function {function_name} successfully called.")
+        # Set class methods for LEGO functions
+        for function_name, description in self.descriptions.items():
+            class_method = self._create_class_method(function_name, description)
+            setattr(self.__class__, function_name, class_method)
+
+    async def _unity_function(self, function_name, **kwargs):
+        async with websockets.connect(self.url) as websocket:
+            print(f"DA Python: Send Function {function_name}")
+            await websocket.send(function_name)
+            response = await websocket.recv()
+            print(f"DA Python: Get Response: {response}\n")
+        return response
+
+    @classmethod
+    async def _unity_function_wrapper(cls, function_name, **kwargs):
+        try:
+            return await cls()._unity_function(function_name, **kwargs)
+        except websockets.ConnectionClosedError:
+            err_msg = f"DA Python: WebSocket connection to Unity Function {function_name} closed unexpectedly."
+            print(err_msg)
+            return None
+
+    def _create_class_method(self, function_name, description):
+        async def async_method(**kwargs):
+            """
+            Create a class method in the same way
+            Example:
+                usage:
+                    result = LegoAPIWrapper.FunctionName()
+            """
+            return await self._unity_function_wrapper(function_name, **kwargs)
+
+        def sync_method(self, **kwargs):
+            loop = asyncio.get_event_loop()
+            result = loop.run_until_complete(async_method(**kwargs))
+            return result
+
+        sync_method.__doc__ = f"DA Python Function Doc:\n{function_name}:{description}\nUsage: result = LegoAPIWrapper.{function_name}"
+        return sync_method
+
+    def __getattr__(self, function_name):
+        if function_name in self.descriptions:
+            return self._create_class_method(function_name, self.descriptions[function_name])
         else:
-            print(f"Failed to call Unity function {function_name}.")
+            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{function_name}'")
 
-    def _call_unity_function(self, function_name):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((self.unity_host, self.unity_port))
-            unity_function_name = function_name.encode("utf-8")
-            unity_response = s.sendall(unity_function_name)
-        return unity_response
 
-    def callStartAssemble(self):
-        return self._call_unity_function("StartAssemble")
-
-    def callNextStep(self):
-        return self._call_unity_function("NextStep")
-
-    def callFrontStep(self):
-        return self._call_unity_function("FrontStep")
-
-    def callExplode(self):
-        return self._call_unity_function("Explode")
-
-    def callRecover(self):
-        return self._call_unity_function("Recover")
-
-    def callFinishedVideo(self):
-        return self._call_unity_function("FinishedVideo")
-
-    def callReShow(self):
-        return self._call_unity_function("ReShow")
-
-    def callEnlarge(self):
-        return self._call_unity_function("Enlarge")
-
-    def callShrink(self):
-        return self._call_unity_function("Shrink")
+def test_api():
+    lego_api = LegoAPIWrapper()
+    result1 = lego_api.StartAssemble()
+    if result1 is not None:
+        print(lego_api.StartAssemble.__doc__)
 
 
 if __name__ == "__main__":
-    ar_api = LegoAPIWrapper()
-    print(ar_api.callStartAssemble())
-    print(ar_api.callShrink())
-    print(ar_api.callEnlarge())
-    # Call other functions as needed.
+    test_api()

@@ -104,6 +104,7 @@ The AR system can be more complex and practical ones such as [HOLO](https://holo
 We implement a toolkit (a set of APIs / interfaces) to call the services or functions (as in table) provided by the AR system for LLMs to plan which and when to use.
 (See more implementation details at [lego_api_wrapper.py](LEGO_dialogue_agent_openai%2Ftools_wrappers%2Flego_api_wrapper.py))
 
+### 4.1.1 Description of AR functions
 | No | AR functions  | Description                                                                |
 |----|---------------|----------------------------------------------------------------------------|
 | 1  | StartAssemble | to initiate the assembly process.                                          |
@@ -115,6 +116,18 @@ We implement a toolkit (a set of APIs / interfaces) to call the services or func
 | 7  | ReShow        | to repeat the current assembly step.                                       |
 | 8  | Enlarge       | to enlarge or zoom out the current object.                                 |
 | 9  | Shrink        | to shrink or zoom in the current object.                                   |
+
+### 4.1.2 Responses from AR functions
+To make the real-time interaction between AR application and DA. 
+The real implementation is in Unity (C#), however, to easily debug, we created a python simulated client and first run it.
+```shell
+# cd LEGO_dialogue_agent_openai/tools_wrappers
+python lego_app_simulated_client.py
+```
+Then we test if we can get the correct response from the simulated client.
+```shell
+python lego_app_simulated_client.py
+```
 
 ## 4.2 Develop DA's API service
 We develop an API service  ([agent_cli.py](LEGO_dialogue_agent_openai%2Fagent_cli.py)) that can be called by other systems (such as AR system) using [LangChain REST APIs](https://github.com/jina-ai/langchain-serve/blob/main/examples/rest/README.md).

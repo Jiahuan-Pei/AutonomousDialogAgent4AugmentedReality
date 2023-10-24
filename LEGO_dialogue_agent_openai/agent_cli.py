@@ -1,19 +1,17 @@
-from prompt_toolkit import HTML, prompt, PromptSession
-from prompt_toolkit.history import FileHistory
-
+import langchain
+from callbacks.agent_logger import AgentCallbackHandler
 from langchain.input import get_colored_text
 from dotenv import load_dotenv
 from langchain.agents import AgentExecutor
-
-import langchain
-from callbacks import AgentCallbackHandler
-
 load_dotenv()
 from chain_setup import setup_agent
 
-langchain.debug = True
+from prompt_toolkit import HTML, prompt, PromptSession
+from prompt_toolkit.history import FileHistory
 
+langchain.debug = True
 from lcserve import serving
+
 
 @serving
 def ask(query: str) -> str:
@@ -56,3 +54,4 @@ def interactive():
 if __name__ == "__main__":
     # ask('How many people live in canada as of 2023?')
     interactive()
+    # pass

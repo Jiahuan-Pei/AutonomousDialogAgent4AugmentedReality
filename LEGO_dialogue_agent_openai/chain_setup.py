@@ -1,33 +1,39 @@
-from langchain.utilities.duckduckgo_search import DuckDuckGoSearchAPIWrapper
-from langchain.utilities.wikipedia import WikipediaAPIWrapper
-from langchain.utilities import PubMedAPIWrapper
-from langchain import ArxivAPIWrapper, LLMMathChain
+import os
+from typing import Tuple, Dict, List
+import inspect
+import asyncio
+
 from langchain.agents import initialize_agent, Tool
 from langchain.tools import StructuredTool
 from langchain.agents import AgentType
 from langchain.chat_models import ChatOpenAI
 from langchain.agents import AgentExecutor
 from langchain.memory import ConversationBufferMemory
-
 from langchain.prompts.chat import MessagesPlaceholder
+from langchain.callbacks.manager import CallbackManager
 import tools_wrappers
-from typing import Tuple, Dict
 
-import os
+from langchain.callbacks.base import AsyncCallbackHandler
 
-# from dotenv import load_dotenv, find_dotenv
-# # load environment variables in .env file
-# load_dotenv(find_dotenv())
+from dotenv import load_dotenv, find_dotenv
+# load environment variables in .env file
+load_dotenv(find_dotenv())
+
+working_directory = os.getenv("WORKING_DIRECTORY")
+# Change the working directory
+if working_directory:
+    os.chdir(os.getenv("WORKING_DIRECTORY"))
 
 
-class Config():
+class Config:
     """
     Contains the configuration of the LLM.
     """
     model = 'gpt-3.5-turbo-16k-0613'
     OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
+    temperature = 0.0
+    verbose = True
     print(f'OPENAI_API_KEY={OPENAI_API_KEY}')
-    llm = ChatOpenAI(temperature=0, model=model)
 
 
 def setup_memory() -> Tuple[Dict, ConversationBufferMemory]:
@@ -43,66 +49,52 @@ def setup_memory() -> Tuple[Dict, ConversationBufferMemory]:
     return agent_kwargs, memory
 
 
-def setup_agent() -> AgentExecutor:
+# In the setup_tools function, access descriptions from LegoAPIWrapper
+def setup_tools() -> List[StructuredTool]:
+    lego_toolkits = tools_wrappers.LegoAPIWrapper()
+
+    # Get a list of all callable methods in the LegoAPIWrapper instance
+    tools = [method for method in dir(lego_toolkits) if callable(getattr(lego_toolkits, method)) and not method.startswith("_")]
+
+    # Create StructuredTool objects with descriptions from LegoAPIWrapper
+    structured_tools = [
+        StructuredTool.from_function(getattr(lego_toolkits, func), name=func, description=lego_toolkits.descriptions.get(func, ""))
+        for func in tools
+    ]
+
+    return structured_tools
+
+
+def setup_agent(client_in_the_loop=False, **kwargs) -> AgentExecutor:
     """
     Sets up the tools for a function based chain.
     """
     cfg = Config()
 
-    lego_toolkits = tools_wrappers.LegoAPIWrapper()  # a set of customized LEGO tools
+    if client_in_the_loop:
+        llm = ChatOpenAI(
+            temperature=cfg.temperature,
+            model=cfg.model,
+            verbose=cfg.verbose,
+            streaming=True,  # Pass `streaming=True` to make sure the client receives the data.
+            callback_manager=CallbackManager(
+                [AsyncCallbackHandler]
+            ),  # Pass the callback handler
+        )
+    else:
+        llm = ChatOpenAI(
+            temperature=cfg.temperature,
+            model=cfg.model,
+            verbose=cfg.verbose
+        )
 
-    tools = [
-        StructuredTool.from_function(
-            func=lego_toolkits.callStartAssemble,
-            name='callStartAssemble',
-            description='Useful tool for calling LEGO AR system to initiate the assembly process.'
-        ),
-        StructuredTool.from_function(
-            func=lego_toolkits.callNextStep,
-            name='callNextStep',
-            description='Useful tool for calling LEGO AR system to move to the next assembly step.'
-        ),
-        StructuredTool.from_function(
-            func=lego_toolkits.callFrontStep,
-            name='callFrontStep',
-            description='Useful tool for calling LEGO AR system to go back to the previous assembly step.'
-        ),
-        StructuredTool.from_function(
-            func=lego_toolkits.callExplode,
-            name='callExplode',
-            description='Useful tool for calling LEGO AR system to trigger an explosion for detailed viewing.'
-        ),
-        StructuredTool.from_function(
-            func=lego_toolkits.callRecover,
-            name='callRecover',
-            description='Useful tool for calling LEGO AR system to restore the initial state of the VR objects after explosion.'
-        ),
-        StructuredTool.from_function(
-            func=lego_toolkits.callFinishedVideo,
-            name='callFinishedVideo',
-            description='Useful tool for calling LEGO AR system to end the assembly process and show a video of the assembled LEGO bricks.'
-        ),
-        StructuredTool.from_function(
-            func=lego_toolkits.callReShow,
-            name='callReShow',
-            description='Useful tool for calling LEGO AR system to repeat the current assembly step.'
-        ),
-        StructuredTool.from_function(
-            func=lego_toolkits.callEnlarge,
-            name='callEnlarge',
-            description='Useful tool for calling LEGO AR system to enlarge or zoom out the current object.'
-        ),
-        StructuredTool.from_function(
-            func=lego_toolkits.callShrink,
-            name='callShrink',
-            description='Useful tool for calling LEGO AR system to shrink or zoom in the current object.'
-        ),
-    ]
     agent_kwargs, memory = setup_memory()
+
+    tools = setup_tools()
 
     return initialize_agent(
         tools, 
-        cfg.llm, 
+        llm,
         agent=AgentType.OPENAI_FUNCTIONS, 
         verbose=False, 
         agent_kwargs=agent_kwargs,

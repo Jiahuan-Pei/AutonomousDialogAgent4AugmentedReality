@@ -1,0 +1,11 @@
+{
+    "StartAssemble": "Useful tool for initiating the assembly process.",
+    "NextStep": "Useful tool for moving to the next assembly step.",
+    "FrontStep": "Useful tool for going back to the previous assembly step.",
+    "Explode": "Useful tool for triggering an explosion for detailed viewing.",
+    "Recover": "Useful tool for restoring the initial state of AR objects after explosion.",
+    "FinishedVideo": "Useful tool for ending the assembly process and showing a video of the assembled LEGO bricks.",
+    "ReShow": "Useful tool for repeating the current assembly step.",
+    "Enlarge": "Useful tool for enlarging or zooming out the current object.",
+    "Shrink": "Useful tool for shrinking or zooming in the current object."
+}
