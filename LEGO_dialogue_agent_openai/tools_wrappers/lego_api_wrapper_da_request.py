@@ -8,7 +8,7 @@ class LegoAPIWrapper:
     def __init__(self):
         self.server_host = "localhost"
         self.server_port = 8080
-        self.server_name = 'AR_LEGO'
+        self.server_name = 'citl'
         self.description_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "lego_function_description.json")
         self.url = f"ws://{self.server_host}:{self.server_port}/{self.server_name}"
 

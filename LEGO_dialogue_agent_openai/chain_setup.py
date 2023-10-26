@@ -65,28 +65,50 @@ def setup_tools() -> List[StructuredTool]:
     return structured_tools
 
 
-def setup_agent(client_in_the_loop=False, **kwargs) -> AgentExecutor:
+def setup_agent_citl(**kwargs) -> AgentExecutor:
     """
     Sets up the tools for a function based chain.
     """
     cfg = Config()
 
-    if client_in_the_loop:
-        llm = ChatOpenAI(
-            temperature=cfg.temperature,
-            model=cfg.model,
-            verbose=cfg.verbose,
-            streaming=True,  # Pass `streaming=True` to make sure the client receives the data.
-            callback_manager=CallbackManager(
-                [AsyncCallbackHandler]
-            ),  # Pass the callback handler
-        )
-    else:
-        llm = ChatOpenAI(
-            temperature=cfg.temperature,
-            model=cfg.model,
-            verbose=cfg.verbose
-        )
+    # Get the `streaming_handler` from `kwargs`. This is used to stream data to the client.
+    streaming_handler = kwargs.get('streaming_handler')
+    # streaming_handler = AsyncCallbackHandler
+    llm = ChatOpenAI(
+        temperature=cfg.temperature,
+        model=cfg.model,
+        verbose=cfg.verbose,
+        streaming=True,  # Pass `streaming=True` to make sure the client receives the data.
+        callback_manager=CallbackManager(
+            [streaming_handler]
+        ),  # Pass the callback handler
+    )
+
+    agent_kwargs, memory = setup_memory()
+
+    tools = setup_tools()
+
+    return initialize_agent(
+        tools,
+        llm,
+        agent=AgentType.OPENAI_FUNCTIONS,
+        verbose=False,
+        agent_kwargs=agent_kwargs,
+        memory=memory
+    )
+
+
+def setup_agent() -> AgentExecutor:
+    """
+    Sets up the tools for a function based chain.
+    """
+    cfg = Config()
+
+    llm = ChatOpenAI(
+        temperature=cfg.temperature,
+        model=cfg.model,
+        verbose=cfg.verbose
+    )
 
     agent_kwargs, memory = setup_memory()
 

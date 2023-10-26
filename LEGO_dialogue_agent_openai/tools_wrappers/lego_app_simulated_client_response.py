@@ -3,7 +3,10 @@ import websockets
 import random
 
 
-async def unity_simulation(websocket, path):
+async def unity_simulation_response(websocket, path):
+    """
+    This simulates the AR application is always running to reply DA's request when receiving its message.
+    """
     unity_callable_functions = {
         "StartAssemble": "Useful tool for initiating the assembly process.",
         "NextStep": "Useful tool for moving to the next assembly step.",
@@ -32,7 +35,8 @@ async def unity_simulation(websocket, path):
         print(response)
 
 if __name__ == "__main__":
-    start_server = websockets.serve(unity_simulation, "localhost", 8080)
+    # Start the WebSocket server
+    start_server = websockets.serve(unity_simulation_response, "localhost", 8080)
     asyncio.get_event_loop().run_until_complete(start_server)
     asyncio.get_event_loop().run_forever()
 

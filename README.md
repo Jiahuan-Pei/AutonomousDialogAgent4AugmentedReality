@@ -122,27 +122,45 @@ To make the real-time interaction between AR application and DA.
 The real implementation is in Unity (C#), however, to easily debug, we created a python simulated client and first run it.
 ```shell
 # cd LEGO_dialogue_agent_openai/tools_wrappers
-python lego_app_simulated_client.py
+python lego_app_simulated_client_response.py
 ```
 Then we test if we can get the correct response from the simulated client.
 ```shell
-python lego_app_simulated_client.py
+python lego_app_simulated_client_response.py
 ```
 
 ## 4.2 Develop DA's API service
-We develop an API service  ([agent_cli.py](LEGO_dialogue_agent_openai%2Fagent_cli.py)) that can be called by other systems (such as AR system) using [LangChain REST APIs](https://github.com/jina-ai/langchain-serve/blob/main/examples/rest/README.md).
+We develop API services  ([agent_lego_api.py](LEGO_dialogue_agent_openai%2Fagent_lego_api.py)) that can be called by AR application (such as BrickDream). 
+- ``citl`` ([Websocket](https://github.com/jina-ai/langchain-serve/blob/main/examples/websockets/hitl/README.md))
+- ``ask`` ([REST APIs](https://github.com/jina-ai/langchain-serve/blob/main/examples/rest/README.md))
+
+> When to Choose Sockets:
+> - Use sockets when you need low-latency, real-time, or continuous communication.
+> - For scenarios like online games, chat applications, live streaming, or any application where rapid data transfer is crucial.
+> - When full-duplex communication is essential, and you want to maintain an open connection.
+> 
+> When to Choose RESTful API:
+> - Use RESTful APIs when you need a simple and web-friendly way to exchange data between applications.
+> - If you want to create an HTTP-based API that other services or clients can access.
+> - When real-time, low-latency communication is not a strict requirement.
 
 ### Step 1: Refactor your code to function(s) that should be served with @serving decorator
 ```shell
-@serving
-def ask(input: str) -> str:
-    agent_executor: AgentExecutor = setup_agent()
+# Decorate the function with the @serving decorator for WebSocket communication
+@serving(websocket=True)
+async def citl(query: str, **kwargs) -> str:
+    """
+    Client in the loop
+    """
+    # auth_response = kwargs['auth_response']  # This will be 'userid'
+    agent_executor: AgentExecutor = setup_agent_citl(**kwargs)
     try:
-        response = agent_executor.run(input, callbacks=[AgentCallbackHandler()])
+        # response = agent_executor.run(query)
+        response = agent_executor.run(query, callbacks=[AgentCallbackHandler()])
         print(get_colored_text("Response: >>> ", "green"))
         print(get_colored_text(response, "green"))
     except Exception as e:
-        print(get_colored_text(f"Failed to process {input}", "red"))
+        print(get_colored_text(f"Failed to process {query}", "red"))
         print(get_colored_text(f"Error {e}", "red"))
     return response
 ```
@@ -153,37 +171,27 @@ def ask(input: str) -> str:
 ### Step 3: Run lc-serve deploy local app to test your API locally
 First, start the server.
 ```shell
-lc-serve deploy local agent_cli
+lc-serve deploy local agent_lego_api
 ```
-Note that **agent_cli** is the name of the module ([agent_cli.py](LEGO_dialogue_agent_openai%2Fagent_cli.py)) that contains the `ask` function.
+Note that **agent_lego_api** is the name of the module ([agent_lego_api.py](LEGO_dialogue_agent_openai%2Fagent_lego_api.py)) that contains the `citl` function.
 
-Second, test our local API with a customized input as an input with a cURL command.
+Second, test `citl` sync api by the simulated client request ([lego_app_simulated_client_request.py](LEGO_dialogue_agent_openai%2Ftools_wrappers%2Flego_app_simulated_client_request.py)). 
+In practice, the request is from the AR application (C# in Unity).
+
+(Optional) test `ask` API with a customized input as an input with a cURL command.
 ```shell input
 curl -X 'POST' \
   'http://localhost:8080/ask' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
   -d '{
-  "input": "Can you start to teach me how to assemble a LEGO car?",
+  "query": "Can you start to teach me how to assemble a LEGO car?",
   "envs": {
     "OPENAI_API_KEY": "'"${OPENAI_API_KEY}"'"
   }
 }'
 ```
-
-```shell input
-curl -X 'POST' \
-  'http://192.16.201.141:8080/ask' \
-  -H 'accept: application/json' \
-  -H 'Content-Type: application/json' \
-  -d '{
-  "input": "Can you start to teach me how to assemble a LEGO car?",
-  "envs": {
-    "OPENAI_API_KEY": "'"${OPENAI_API_KEY}"'"
-  }
-}'
-```
-
+Then you will see output like this:
 ```shell output
 {
   "result": "Of course! I can guide you through the process of assembling a LEGO car. Let's get started!\n\nStep 1:...",
@@ -193,7 +201,7 @@ curl -X 'POST' \
 ```
 
 - `POST /ask` is generated from ask function defined in agent_cli.py.
-- `input` is an argrment defined in `ask` function.
+- `query` is an argrment defined in `ask` function.
 - `envs` is a dictionary of environment variables that will be passed to all the functions decorated with `@serving` decorator.
 - return type of `ask` function is `str`. So, `result` would carry the return `value` of ask function.
 - If there is an error, `error` would carry the error message.
@@ -206,7 +214,7 @@ Then your service can be in practical use now.
 jina auth login
 
 # Deploy your app to Jina AI Cloud
-lc-serve deploy jcloud agent_cli
+lc-serve deploy jcloud agent_lego_api --secrets .env
 ```
 
 ## 4.3 Agent Loop
