@@ -8,9 +8,6 @@ from langchain.agents import AgentExecutor
 from chain_setup import setup_agent, setup_agent_citl
 from callbacks.agent_logger import AgentCallbackHandler
 
-from prompt_toolkit import HTML, prompt, PromptSession
-from prompt_toolkit.history import FileHistory
-
 langchain.debug = True
 from lcserve import serving
 

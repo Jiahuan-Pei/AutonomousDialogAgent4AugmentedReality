@@ -1,9 +1,7 @@
 import os
 from typing import Tuple, Dict, List
-import inspect
-import asyncio
 
-from langchain.agents import initialize_agent, Tool
+from langchain.agents import initialize_agent
 from langchain.tools import StructuredTool
 from langchain.agents import AgentType
 from langchain.chat_models import ChatOpenAI
@@ -12,8 +10,6 @@ from langchain.memory import ConversationBufferMemory
 from langchain.prompts.chat import MessagesPlaceholder
 from langchain.callbacks.manager import CallbackManager
 import tools_wrappers
-
-from langchain.callbacks.base import AsyncCallbackHandler
 
 from dotenv import load_dotenv, find_dotenv
 # load environment variables in .env file

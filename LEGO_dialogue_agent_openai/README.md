@@ -4,8 +4,8 @@ Simple playground chat app that interacts with OpenAI's functions with memory an
 
 This project contains two attempts at creating an agent with LangChain:
 You can find a simple command line application in file 
-[agent_cli.py](agent_cli.py).
-You can find a small Streamlit application in the file [agent_streamlit.py](agent_streamlit.py)
+[agent_cli.py](../agent_cli.py).
+You can find a small Streamlit application in the file [agent_streamlit.py](../agent_streamlit.py)
 
 The agent is in both cases the same and shows how you can create custom tools.
 

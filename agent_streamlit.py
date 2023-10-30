@@ -1,8 +1,6 @@
 import streamlit as st
 from dotenv import load_dotenv
-
 from langchain.agents import AgentExecutor
-
 import callbacks
 
 load_dotenv()
@@ -13,16 +11,33 @@ QUESTION_HISTORY: str = 'question_history'
 
 
 def init_stream_lit():
-    title = "Chat Functions Introduction"
-    st.set_page_config(page_title=title, layout="wide")
-    agent_executor: AgentExecutor = prepare_agent()
+    title = "LEGO Assembly Training Assistant"
+    st.set_page_config(page_title=title, page_icon="🦜", layout="wide")
     st.header(title)
+
+    # Setup credentials in Streamlit
+    user_openai_api_key = st.sidebar.text_input(
+        "OpenAI API Key", type="password", help="Set this to run your own custom questions."
+    )
+
+    if user_openai_api_key:
+        openai_api_key = user_openai_api_key
+        enable_custom = True
+    else:
+        openai_api_key = "not_supplied"
+        enable_custom = False
+
+    agent_executor: AgentExecutor = prepare_agent()
+
     if QUESTION_HISTORY not in st.session_state:
         st.session_state[QUESTION_HISTORY] = []
     intro_text()
     simple_chat_tab, historical_tab = st.tabs(["Simple Chat", "Session History"])
     with simple_chat_tab:
-        user_question = st.text_input("Your question")
+        if enable_custom:
+            user_question = st.text_input("Your question")
+        else:
+            st.error(f"Please enter your API Keys in the sidebar to ask your own custom questions.")
         with st.spinner('Please wait ...'):
             try:
                 response = agent_executor.run(user_question, callbacks=[callbacks.StreamlitCallbackHandler(st)])
