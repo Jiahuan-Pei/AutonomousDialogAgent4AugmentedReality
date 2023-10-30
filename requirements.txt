@@ -4,11 +4,10 @@ langchain
 streamlit
 pydantic
 asyncio
-json
 click
-jcloud>=0.2.16
 requests
 jina-hubble-sdk
+jcloud>=0.2.16
 nest-asyncio
 textual
 toml
