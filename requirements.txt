@@ -2,6 +2,7 @@ openai
 websockets
 langchain
 streamlit
+pydantic
 click
 jcloud>=0.2.16
 requests
