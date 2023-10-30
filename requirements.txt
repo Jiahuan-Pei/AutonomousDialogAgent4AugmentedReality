@@ -1,8 +1,10 @@
 openai
+websockets
+langchain
+streamlit
 click
 jcloud>=0.2.16
 requests
-langchain
 jina-hubble-sdk
 nest-asyncio
 textual
