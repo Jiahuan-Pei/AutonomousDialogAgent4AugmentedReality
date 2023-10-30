@@ -1,4 +1,5 @@
 import streamlit as st
+import os
 from dotenv import load_dotenv
 from langchain.agents import AgentExecutor
 import callbacks
@@ -21,10 +22,10 @@ def init_stream_lit():
     )
 
     if user_openai_api_key:
-        openai_api_key = user_openai_api_key
+        os.environ['OPENAI_API_KEY'] = user_openai_api_key
         enable_custom = True
     else:
-        openai_api_key = "not_supplied"
+        # openai_api_key = "not_supplied"
         enable_custom = False
 
     agent_executor: AgentExecutor = prepare_agent()

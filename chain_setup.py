@@ -11,15 +11,6 @@ from langchain.prompts.chat import MessagesPlaceholder
 from langchain.callbacks.manager import CallbackManager
 import tools_wrappers
 
-from dotenv import load_dotenv, find_dotenv
-# load environment variables in .env file
-load_dotenv(find_dotenv())
-
-working_directory = os.getenv("WORKING_DIRECTORY")
-# Change the working directory
-if working_directory:
-    os.chdir(os.getenv("WORKING_DIRECTORY"))
-
 
 class Config:
     """

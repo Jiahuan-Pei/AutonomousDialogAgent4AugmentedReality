@@ -3,6 +3,8 @@ websockets
 langchain
 streamlit
 pydantic
+asyncio
+json
 click
 jcloud>=0.2.16
 requests

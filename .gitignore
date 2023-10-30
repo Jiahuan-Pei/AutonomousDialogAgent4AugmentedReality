@@ -1,6 +1,9 @@
+# Make sure to gitignore this!
+.env
+./.streamlit/secrets.toml
+
 .idea
 .DS_Store
-.env
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
