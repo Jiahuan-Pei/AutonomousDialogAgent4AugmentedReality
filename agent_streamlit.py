@@ -22,13 +22,9 @@ def init_stream_lit():
     )
 
     if user_openai_api_key:
-        os.environ['OPENAI_API_KEY'] = user_openai_api_key
         enable_custom = True
     else:
-        # openai_api_key = "not_supplied"
         enable_custom = False
-
-    agent_executor: AgentExecutor = prepare_agent()
 
     if QUESTION_HISTORY not in st.session_state:
         st.session_state[QUESTION_HISTORY] = []
@@ -36,6 +32,8 @@ def init_stream_lit():
     simple_chat_tab, historical_tab = st.tabs(["Simple Chat", "Session History"])
     with simple_chat_tab:
         if enable_custom:
+            os.environ['OPENAI_API_KEY'] = user_openai_api_key
+            agent_executor: AgentExecutor = prepare_agent()
             user_question = st.text_input("Your question")
         else:
             st.error(f"Please enter your API Keys in the sidebar to ask your own custom questions.")
