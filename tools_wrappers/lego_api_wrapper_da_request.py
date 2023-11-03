@@ -57,27 +57,8 @@ class LegoAPIWrapper:
             print(err_msg)
             return None
 
-    # def _create_class_method(self, function_name, description):
-    #     async def async_method(**kwargs):
-    #         f"""
-    #         DA Python Function Doc:
-    #         {function_name}:{description}
-    #         Usage: result = LegoAPIWrapper.{function_name}
-    #         """
-    #         return await self._unity_function_wrapper(function_name, **kwargs)
-    #
-    #     def sync_method(self, **kwargs):
-    #         result = self.loop.run_until_complete(async_method(**kwargs))
-    #         # loop = asyncio.new_event_loop()
-    #         # result = loop.run_until_complete(async_method(**kwargs))
-    #         # loop.close()
-    #         return result
-    #
-    #     sync_method.__doc__ = f"DA Python Function Doc:\n{function_name}:{description}\nUsage: result = LegoAPIWrapper.{function_name}"
-    #     return sync_method
-
     def _create_class_method(self, function_name, description):
-        async def async_method(self, **kwargs):
+        async def async_method(**kwargs):
             f"""
             DA Python Function Doc:
             {function_name}:{description}
@@ -85,7 +66,26 @@ class LegoAPIWrapper:
             """
             return await self._unity_function_wrapper(function_name, **kwargs)
 
-        return async_method
+        def sync_method(self, **kwargs):
+            result = self.loop.run_until_complete(async_method(**kwargs))
+            # loop = asyncio.new_event_loop()
+            # result = loop.run_until_complete(async_method(**kwargs))
+            # loop.close()
+            return result
+
+        sync_method.__doc__ = f"DA Python Function Doc:\n{function_name}:{description}\nUsage: result = LegoAPIWrapper.{function_name}"
+        return sync_method
+
+    # def _create_class_method(self, function_name, description):
+    #     async def async_method(self, **kwargs):
+    #         f"""
+    #         DA Python Function Doc:
+    #         {function_name}:{description}
+    #         Usage: result = LegoAPIWrapper.{function_name}
+    #         """
+    #         return await self._unity_function_wrapper(function_name, **kwargs)
+    #
+    #     return async_method
 
     def __getattr__(self, function_name):
         if function_name in self.descriptions:

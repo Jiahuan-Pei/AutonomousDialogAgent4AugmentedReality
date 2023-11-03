@@ -43,8 +43,8 @@ async def generate_response(query: str, loop=None):
         # response = agent_executor.run(query, callbacks=[AgentCallbackHandler()])
         response = agent_executor.run(query, callbacks=[callbacks.StreamCallbackHandler()]) # the same streamlit agent
         # response = agent_executor.run(query, callbacks=[AsyncIteratorCallbackHandler()])
-        # print(get_colored_text("Response: >>>", "green"))
-        # print(get_colored_text(response, "green"))
+        print(get_colored_text("Response: >>>", "green"))
+        print(get_colored_text(response, "green"))
     except Exception as e:
         print(get_colored_text(f"Failed to process {query}", "red"))
         print(get_colored_text(f"Error: {e}", "red"))
