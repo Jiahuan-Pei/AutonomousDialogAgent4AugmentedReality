@@ -36,4 +36,33 @@ class StreamlitCallbackHandler(BaseCallbackHandler):
         **kwargs: Any,
     ) -> Any:
         """Run on agent end."""
+        # self.st.write(f"Output: {finish.return_values}")
+        pass
+
+
+class StreamCallbackHandler(BaseCallbackHandler):
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    def on_agent_action(
+        self,
+        action: AgentAction,
+        *,
+        run_id: UUID,
+        parent_run_id: Optional[UUID] = None,
+        **kwargs: Any,
+    ) -> Any:
+        """Run on agent action."""
+        pass
+
+    def on_agent_finish(
+        self,
+        finish: AgentFinish,
+        *,
+        run_id: UUID,
+        parent_run_id: Optional[UUID] = None,
+        **kwargs: Any,
+    ) -> Any:
+        """Run on agent end."""
         pass

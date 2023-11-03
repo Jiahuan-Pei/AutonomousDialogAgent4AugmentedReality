@@ -122,11 +122,11 @@ To make the real-time interaction between AR application and DA.
 The real implementation is in Unity (C#), however, to easily debug, we created a python simulated client and first run it.
 ```shell
 # cd LEGO_dialogue_agent_openai/tools_wrappers
-python lego_app_simulated_client_response.py
+python lego_streamlit.py
 ```
 Then we test if we can get the correct response from the simulated client.
 ```shell
-python lego_app_simulated_client_response.py
+python lego_streamlit.py
 ```
 
 ## 4.2 Develop DA's API service
@@ -222,6 +222,10 @@ lc-serve deploy jcloud agent_lego_api --secrets .env
 ## 4.4 LEGO ARTA Deployment
 ![ARTA-LEGO-deployment.jpg](image%2FARTA-LEGO-deployment.jpg)
 
+```shell
+# kill the port sometimes
+npx kill-port --port 8080
+```
 
 ## Reference
 [1] LangChain Chat with Custom Tools, Functions and Memory [[blog]](https://medium.com/@gil.fernandes/langchain-chat-with-custom-tools-functions-and-memory-e34daa331aa7)

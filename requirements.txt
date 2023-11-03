@@ -2,8 +2,11 @@ openai
 websockets
 langchain
 streamlit
+fastapi
+fastapi-oauth2
 pydantic
 asyncio
+uvicorn
 click
 requests
 jina-hubble-sdk

@@ -1,2 +1,2 @@
 from callbacks.agent_logger import AgentCallbackHandler
-from callbacks.agent_streamlit_writer import StreamlitCallbackHandler
+from callbacks.agent_streamlit_writer import StreamlitCallbackHandler, StreamCallbackHandler

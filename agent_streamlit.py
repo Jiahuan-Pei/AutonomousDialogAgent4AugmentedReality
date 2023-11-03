@@ -21,7 +21,7 @@ def init_stream_lit():
         "OpenAI API Key", type="password", help="Set this to run your own custom questions."
     )
 
-    if user_openai_api_key:
+    if user_openai_api_key or os.environ['OPENAI_API_KEY']:
         enable_custom = True
     else:
         enable_custom = False
@@ -32,7 +32,7 @@ def init_stream_lit():
     simple_chat_tab, historical_tab = st.tabs(["Simple Chat", "Session History"])
     with simple_chat_tab:
         if enable_custom:
-            os.environ['OPENAI_API_KEY'] = user_openai_api_key
+            os.environ['OPENAI_API_KEY'] = user_openai_api_key if not os.environ['OPENAI_API_KEY'] else os.environ['OPENAI_API_KEY']
             agent_executor: AgentExecutor = prepare_agent()
             user_question = st.text_input("Your question")
         else:
@@ -40,6 +40,7 @@ def init_stream_lit():
         with st.spinner('Please wait ...'):
             try:
                 response = agent_executor.run(user_question, callbacks=[callbacks.StreamlitCallbackHandler(st)])
+                # response = agent_executor.run(user_question, callbacks=[callbacks.StreamlitCallbackHandler(st)])
                 st.write(f"{response}")
                 st.session_state[QUESTION_HISTORY].append((user_question, response))
             except Exception as e:
@@ -65,7 +66,7 @@ def intro_text():
         8	Enlarge	to enlarge or zoom out the current object.
         9	Shrink	to shrink or zoom in the current object.
     """)
-        
+
 @st.cache_resource()
 def prepare_agent() -> AgentExecutor:
     return setup_agent()
