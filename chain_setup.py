@@ -22,8 +22,6 @@ from langchain.callbacks.streaming_stdout_final_only import (
     FinalStreamingStdOutCallbackHandler,
 )
 
-from fastapi import WebSocket
-
 
 class Config:
     """
@@ -63,17 +61,16 @@ def setup_memory() -> Tuple[Dict, ConversationBufferMemory]:
 
 
 # In the setup_tools function, access descriptions from LegoAPIWrapper
-def setup_tools(loop=None) -> List[StructuredTool]:
-    lego_toolkits = tools_wrappers.LegoAPIWrapper(loop)     # async toolkits
+def setup_tools() -> List[StructuredTool]:
 
-    # Get a list of all callable methods in the LegoAPIWrapper instance
-    tools = [method for method in dir(lego_toolkits) if callable(getattr(lego_toolkits, method)) and not method.startswith("_")]
+    lego_toolkits = tools_wrappers.LegoAPIWrapper()     # async toolkits
 
     # Create StructuredTool objects with descriptions from LegoAPIWrapper
-    structured_tools = [
-        StructuredTool.from_function(getattr(lego_toolkits, func), name=func, description=lego_toolkits.descriptions.get(func, ""))
-        for func in tools
-    ]
+    structured_tools = []
+
+    for name, description in lego_toolkits.descriptions.items():
+        func = getattr(lego_toolkits, name)
+        structured_tools.append(StructuredTool.from_function(func=func, name=name, description=description))
 
     return structured_tools
 
@@ -110,7 +107,7 @@ def setup_agent_streaming(**kwargs) -> AgentExecutor:
     )
 
 
-def setup_agent(loop=None) -> AgentExecutor:
+def setup_agent() -> AgentExecutor:
     """
     Sets up the tools for a function based chain.
     """
@@ -124,7 +121,7 @@ def setup_agent(loop=None) -> AgentExecutor:
 
     agent_kwargs, memory = setup_memory()
 
-    tools = setup_tools(loop)
+    tools = setup_tools()
 
     return initialize_agent(
         tools, 

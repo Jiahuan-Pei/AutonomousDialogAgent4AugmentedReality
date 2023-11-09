@@ -1,3 +1,6 @@
+# Data
+lego_instructions/*
+
 # Make sure to gitignore this!
 .env
 ./.streamlit/secrets.toml

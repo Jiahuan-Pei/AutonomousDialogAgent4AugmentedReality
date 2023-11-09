@@ -8,8 +8,7 @@ import random
 
 load_dotenv(find_dotenv())
 
-import threading
-import nest_asyncio  # Import nest_asyncio
+import json
 
 
 unity_callable_functions = {
@@ -33,63 +32,27 @@ sender_info_dict = {
 }
 
 
-# Function to run unity_simulation_response in a separate thread
-def unity_thread():
-    # Enable nest_asyncio
-    nest_asyncio.apply()
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(unity_simulation_response())
-
-
-
-async def unity_simulation_response():
+async def unity_simulation_response(function_name, **params):
     """
     This simulates the AR application is always running to reply DA's request when receiving its message.
     """
     sender_prefix = 'Unity'
-    uri = f"ws://{os.getenv('HOST')}:{int(os.getenv('PORT'))}/chatbot"  # !Important: Use plus one port to avoid issue
+    uri = f"ws://{os.getenv('HOST')}:{int(os.getenv('PORT'))+1}/chatbot"  # !Important: Use plus one port to avoid issue
     extra_headers = [("Authorization", f"Bearer {os.getenv('AUTHORIZER')}")]
     async with websockets.connect(uri, extra_headers=extra_headers) as websocket:
-        async for message in websocket:
-            sender, info = message.split(': ')
-            if sender == 'ToolUnity':
-                if info in unity_callable_functions:
-                    responses = [
-                        f"Great, function {info} called successfully.",
-                        f"Sorry, function {info} called unsuccessfully.",
-                        f"Sorry, you have to wait, I am trying to call function {info}."
-                    ]
-                    weights = [0.7, 0.2, 0.1]  # Ensure the number of weights matches the number of responses
-                    response = random.choices(responses, weights=weights)[0]
-                else:
-                    response = f" Sorry, function {info} is not implemented yet."
-                message = f"{sender_prefix}: {response}"
-                await websocket.send(message)
-                print(get_colored_text(f"{datetime.now()}\t {sender_prefix} sent >>> :\t{message}", "orange"))
-
-# async def unity_simulation_response(function_name):
-#     """
-#     This simulates the AR application is always running to reply DA's request when receiving its message.
-#     """
-#     sender_prefix = 'Unity'
-#     uri = f"ws://{os.getenv('HOST')}:{int(os.getenv('PORT'))+1}/chatbot"  # !Important: Use plus one port to avoid issue
-#     extra_headers = [("Authorization", f"Bearer {os.getenv('AUTHORIZER')}")]
-#     async with websockets.connect(uri, extra_headers=extra_headers) as websocket:
-#         if function_name in unity_callable_functions:
-#             responses = [
-#                 f"Great, function {function_name} called successfully.",
-#                 f"Sorry, function {function_name} called unsuccessfully.",
-#                 f"Sorry, you have to wait, I am trying to call function {function_name}."
-#             ]
-#             weights = [0.7, 0.2, 0.1]
-#             unity_response = random.choices(responses, weights=weights)[0]
-#         else:
-#             unity_response = f"Sorry, function {function_name} is not implemented yet."
-#         message = f"{sender_prefix}: {unity_response}"
-#         await websocket.send(message)
-#         print(get_colored_text(f"{datetime.now()}\t {sender_prefix} sent >>> :\t{message}", "orange"))
+        if function_name in unity_callable_functions:
+            responses = [
+                f"Great, function {function_name} called successfully.",
+                f"Sorry, function {function_name} called unsuccessfully.",
+                f"Sorry, you have to wait, I am trying to call function {function_name}."
+            ]
+            weights = [0.7, 0.2, 0.1]
+            unity_response = random.choices(responses, weights=weights)[0]
+        else:
+            unity_response = f"Sorry, function {function_name} is not implemented yet."
+        message = f"{sender_prefix}: {unity_response}"
+        await websocket.send(message)
+        print(get_colored_text(f"{datetime.now()}\t {sender_prefix} sent >>> :\t{message}", "orange"))
 
 
 # Function to run the client in the main thread
@@ -107,14 +70,17 @@ async def client_main():
             message = await websocket.recv()
             print(get_colored_text(f"Unity Client: {datetime.now()}\t received:\t{message}", "pink"))
 
-            sender, info = message.split(': ')
+            parts = message.strip('\n').split(':')
+            sender = parts[0]
             if sender == 'ToolUnity':
-                await unity_simulation_response(info)
-                # unity_response = await unity_simulation_response(info)
-                # message = f"{sender_prefix}: {unity_response}"
-                # await websocket.send(message)
-                # print(get_colored_text(f"{datetime.now()}\t {sender_prefix} sent >>> :\t{message}", "orange"))
-            if sender == 'AI':
+                sender_prefix = 'Unity'
+                function_name, params = parts[1].split(' ')
+                params = json.loads(params.strip()) if params else None
+                unity_response = await unity_simulation_response(function_name, **params)
+                message = f"{sender_prefix}: {unity_response}"
+                await websocket.send(message)
+                print(get_colored_text(f"{datetime.now()}\t {sender_prefix} sent >>> :\t{message}", "orange"))
+            elif message.startswith('AI'):
                 print(get_colored_text(f"{datetime.now()}\t Unity received final answer and show the response to human *** \n:\t{message}", "green"))
             else:
                 pass

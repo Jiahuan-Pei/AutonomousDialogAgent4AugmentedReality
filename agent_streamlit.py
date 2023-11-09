@@ -39,9 +39,8 @@ def init_stream_lit():
             st.error(f"Please enter your API Keys in the sidebar to ask your own custom questions.")
         with st.spinner('Please wait ...'):
             try:
-                response = agent_executor.run(user_question, callbacks=[callbacks.StreamlitCallbackHandler(st)])
-                # response = agent_executor.run(user_question, callbacks=[callbacks.StreamlitCallbackHandler(st)])
-                st.write(f"{response}")
+                response = agent_executor.run(user_question, callbacks=[callbacks.StreamlitCallbackHandler(st)])    # ! Important to have a streaming callback handler.
+                st.write(f"TA Answer:\n{response}")
                 st.session_state[QUESTION_HISTORY].append((user_question, response))
             except Exception as e:
                 st.error(f"Error occurred: {e}")
@@ -55,16 +54,18 @@ def init_stream_lit():
 
 def intro_text():
     with st.expander("Click to see application info:"):
-        st.write(f"""Hi, I am your digital trainer to teach you how to assemble a LEGO car. Feel free to ask me open questions or questions about LEGO Assemble Task. We are providng the following functional services in our XR application.
-        1	StartAssemble	to initiate the assembly process.
-        2	NextStep	to move to the next assembly step.
-        3	FrontStep	to go back to the previous assembly step.
-        4	Explode	to trigger an explosion for detailed viewing.
-        5	Recover	to restore the initial state of the VR objects after explosion.
-        6	FinishedVideo	to end the assembly process and show a video of the assembled LEGO bricks.
-        7	ReShow	to repeat the current assembly step.
-        8	Enlarge	to enlarge or zoom out the current object.
-        9	Shrink	to shrink or zoom in the current object.
+        st.write(f"""Hi, I am your digital trainer to teach you how to assemble a LEGO car. \n
+        Feel free to ask me open questions or questions about LEGO Assemble Task. \n
+        We are providng the following functional services in our XR application.\n
+        1	StartAssemble	to initiate the assembly process.\n
+        2	NextStep	to move to the next assembly step.\n
+        3	FrontStep	to go back to the previous assembly step.\n
+        4	Explode	to trigger an explosion for detailed viewing.\n
+        5	Recover	to restore the initial state of the VR objects after explosion.\n
+        6	FinishedVideo	to end the assembly process and show a video of the assembled LEGO bricks.\n
+        7	ReShow	to repeat the current assembly step.\n
+        8	Enlarge	to enlarge or zoom out the current object.\n
+        9	Shrink	to shrink or zoom in the current object.\n
     """)
 
 @st.cache_resource()

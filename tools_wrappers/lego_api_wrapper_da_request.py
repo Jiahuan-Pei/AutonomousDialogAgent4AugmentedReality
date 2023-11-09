@@ -6,16 +6,17 @@ from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv())
 from datetime import datetime
 from fastapi import WebSocket
+import concurrent.futures
+from langchain.tools import tool
 
 
 class LegoAPIWrapper:
-    def __init__(self, loop=None):
+    def __init__(self):
         self.server_name = 'chatbot'
-        self.sender_prefix = 'ToolUnity'
         self.secret_token = os.getenv('AUTHORIZER')
         self.description_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "lego_function_description.json")
+        # self.url = f"ws://{os.getenv('HOST')}:{int(os.getenv('PORT'))}/{self.server_name}"    # !Important: Use plus one port to avoid issue
         self.url = f"ws://{os.getenv('HOST')}:{int(os.getenv('PORT'))+1}/{self.server_name}"    # !Important: Use plus one port to avoid issue
-        # self.loop = loop if loop else asyncio.get_event_loop()
         self.loop = asyncio.get_event_loop()
 
         try:
@@ -33,10 +34,13 @@ class LegoAPIWrapper:
     async def _unity_function(self, function_name: str, **kwargs):
         try:
             async with websockets.connect(self.url, extra_headers=[("Authorization", f"Bearer {self.secret_token}")]) as websocket:
+                # Sending message
+                self.sender_prefix = 'ToolUnity'
                 request_message = f"{self.sender_prefix}: {function_name}"
                 await websocket.send(request_message)
                 print(f"{datetime.now()}\t {self.sender_prefix} sent >>>: {request_message}")
 
+                # Receiving message
                 response_message = await websocket.recv()
                 if response_message.startswith('Unity:'):
                     sender, response = response_message.split(': ')

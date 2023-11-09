@@ -1,3 +1,6 @@
+"""
+This cli script is to debug setup_agent().
+"""
 # load environment variables in .env file
 from dotenv import load_dotenv, find_dotenv
 import langchain

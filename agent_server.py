@@ -11,6 +11,7 @@ from datetime import datetime
 import websockets
 import callbacks
 from langchain.callbacks.streaming_aiter import AsyncIteratorCallbackHandler
+import json
 
 from tools_wrappers.lego_api_wrapper_da_request import LegoAPIWrapper
 
@@ -24,7 +25,6 @@ sender_info_dict = {
 }
 
 app = FastAPI()
-loop = asyncio.get_event_loop()
 
 # Initialize client_connection as None
 client_connection = None
@@ -36,13 +36,9 @@ async def authenticate_websocket(websocket: WebSocket):
         await websocket.close(code=4000, reason="Authentication failed")
 
 
-async def generate_response(query: str, loop=None):
-    # agent_executor = setup_agent_streaming()
-    agent_executor = setup_agent(loop)
+async def generate_response(query: str, agent_executor: AgentExecutor) -> str:
     try:
-        # response = agent_executor.run(query, callbacks=[AgentCallbackHandler()])
-        response = agent_executor.run(query, callbacks=[callbacks.StreamCallbackHandler()]) # the same streamlit agent
-        # response = agent_executor.run(query, callbacks=[AsyncIteratorCallbackHandler()])
+        response = agent_executor.run(query, callbacks=[callbacks.StreamCallbackHandler()])
         print(get_colored_text("Response: >>>", "green"))
         print(get_colored_text(response, "green"))
     except Exception as e:
@@ -57,34 +53,62 @@ async def websocket_endpoint_chatbot(websocket: WebSocket):
     await authenticate_websocket(websocket)
     await websocket.accept()
 
-    # Set the global client_connection variable to the WebSocket connection
-    global client_connection
-    client_connection = websocket
+    api = LegoAPIWrapper()
+    api.add_websocket(websocket)
 
-    prefix_sender = 'AI'
-
-    # Create an event loop for the WebSocket connection
-    loop = asyncio.get_event_loop()
+    agent_executor: AgentExecutor = setup_agent()
 
     try:
         while True:
             message = await websocket.receive_text()
             print(get_colored_text(f"{datetime.now()}\t Server received <<<: {message}", "blue"))
-            sender, info = message.split(': ')
+
+            sender, info = message.split(":", 1)
+            sender = sender.strip()
             if sender == 'Human' or sender == 'Unity':
-                response = await generate_response(info, loop)    # Call AI agent!
-                if 'Tool: ' not in response:
-                    message = f"{prefix_sender}: {response}"
-                    await websocket.send_text(message)
-                    print(get_colored_text(f"{datetime.now()}\t Server ({prefix_sender}) sent >>>: {message}", "green"))
-                else:
-                    await websocket.send_text(message)
-                    print(get_colored_text(f"{datetime.now()}\t Server ({prefix_sender}) sent >>>: {message}", "red"))
-            else:
-                pass
+                prefix_sender = 'AI'
+                response = await generate_response(info, agent_executor)    # Call AI agent!
+                await websocket.send_text(response)
+                print(get_colored_text(f"{datetime.now()}\t Server ({prefix_sender}) sent >>>: {message}", "red"))
+            elif sender == 'ToolUnity':
+                function_name, params = info.split(' ')
+                params = json.loads(params.strip()) if params else None
+                if hasattr(api, function_name):
+                    result = await getattr(api, function_name)(websocket=websocket, **params)
+                    print(get_colored_text(f"{datetime.now()}\t Server ({sender}) sent >>>: {result}", "orange"))
+                    if result is not None:
+                        await websocket.send_text(result)
+
     except websockets.exceptions.ConnectionClosedOK:
-        # Handle disconnections
-        client_connection = None
+        api.websockets.remove(websocket)
+
+    # agent_executor = setup_agent(websocket)
+    #
+    # prefix_sender = 'AI'
+    #
+    # try:
+    #     while True:
+    #         message = await websocket.receive_text()
+    #         print(get_colored_text(f"{datetime.now()}\t Server received <<<: {message}", "blue"))
+    #         response = await generate_response(message, agent_executor)
+    #         await websocket.send_text(response)
+    #         # sender, info = message.split(': ')
+    #         # if sender == 'Human' or sender == 'Unity':
+    #         #     response = await generate_response(info)    # Call AI agent!
+    #         #     await websocket.send_text(response)
+    #         #     print(get_colored_text(f"{datetime.now()}\t Server ({prefix_sender}) sent >>>: {message}", "red"))
+    #         #     # if 'Tool: ' not in response:
+    #         #     #     message = f"{prefix_sender}: {response}"
+    #         #     #     await websocket.send_text(message)
+    #         #     #     print(get_colored_text(f"{datetime.now()}\t Server ({prefix_sender}) sent >>>: {message}", "green"))
+    #         #     # else:
+    #         #     #     await websocket.send_text(message)
+    #         #     #     print(get_colored_text(f"{datetime.now()}\t Server ({prefix_sender}) sent >>>: {message}", "red"))
+    #         # else:
+    #         #     pass
+    # except websockets.exceptions.ConnectionClosedOK:
+    #     # Handle disconnections
+    #     client_connection = None
 
 
 if __name__ == '__main__':
