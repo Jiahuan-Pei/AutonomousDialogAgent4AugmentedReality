@@ -7,14 +7,20 @@ from urllib.parse import urlencode, urlparse, parse_qs
 import re
 
 # Define the URL of the website to crawl
-base_url = "https://www.wikihow.com"
+base_url = f"https://www.wikihow.com"
 search_url = f"{base_url}/wikiHowTo"
 
 query_prefix = 'How to'
-seed_queries = [f'{query_prefix} make a LEGO', f'{query_prefix} build a LEGO', f'{query_prefix} assemble a LEGO']
+# doc_prefix = 'wikihow'
+doc_prefix = 'wikihow_assembly'
+
+# query_object = 'LEGO'
+seed_object = 'furniture'
+
+seed_queries = [f'{query_prefix} make a {seed_object}', f'{query_prefix} build a {seed_object}', f'{query_prefix} assemble a {seed_object}']
 
 # Define the directory where you want to save the downloaded resources
-output_directory = os.path.join(os.path.dirname(os.getcwd()), "lego_instructions")
+output_directory = os.path.join(os.path.dirname(os.getcwd()), "instructions")
 # Create the output directory if it doesn't exist
 os.makedirs(output_directory, exist_ok=True)
 
@@ -92,11 +98,10 @@ def extract_wikihow_instruction_from_page(url, output_directory, start=0, count_
                 # Parse the search value
                 # retrieved_parsed_query = href.split('/')[-1].replace('-', ' ')
                 retrieved_parsed_query = f"{query_prefix} {sha_title.replace('-', ' ')}"
-                # Define the regular expression pattern
-                pattern = r"How to (\w+) a LEGO (\w+)"
-                if re.match(pattern, retrieved_parsed_query, re.IGNORECASE):
+                # Double check the seed object exist
+                if seed_object in retrieved_parsed_query.lower():
                     print(f"count_crawled_doc={count_crawled_doc}; count_no_match={count_no_match}")
-                    download_resource(href, output_directory, prefix="wikihow_", doc_id=f"{sha_id}_",
+                    download_resource(href, output_directory, prefix=f"{doc_prefix}_", doc_id=f"{sha_id}_",
                                       doc_name=f"{href.split('/')[-1]}.html")  # DOWNLOAD raw webpage here.
                     count_crawled_doc += 1
                 else:

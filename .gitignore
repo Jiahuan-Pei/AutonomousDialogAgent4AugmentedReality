@@ -1,5 +1,5 @@
 # Data
-lego_instructions/*
+instructions/*
 
 # Make sure to gitignore this!
 .env
