@@ -23,27 +23,6 @@ logger = logging.getLogger(__name__)
 
 load_dotenv(find_dotenv())
 
-unity_callable_functions = {
-    "StartAssemble": "Useful Unity tool to initiate the assembly process.",
-    "NextStep": "Useful Unity tool to move to the next assembly step.",
-    "FrontStep": "Useful Unity tool to go back to the previous assembly step.",
-    "Explode": "Useful Unity tool to trigger an explosion for detailed viewing.",
-    "Recover": "Useful Unity tool to restore the initial state of AR objects after explosion.",
-    "FinishedVideo": "Useful Unity tool to end the assembly process and show a video of the assembled LEGO bricks.",
-    "ReShow": "Useful Unity tool to repeat the current assembly step.",
-    "Enlarge": "Useful Unity tool to enlarge or zoom out the current object.",
-    "Shrink": "Useful Unity tool to shrink or zoom in the current object.",
-    "GoToStep": "Useful Unity tool to go to the given an assembly step number.",
-    "Rotate": "Useful Unity tool to rotate the current object to a direction.",
-    "ShowPieces": "Useful Unity tool to show all candidate LEGO pieces to be assembled.",
-    "HighlightCorrectComponents": "Useful Unity tool to highlight correct attachment points and components.",
-    "GetCurrentStep": "Useful Unity tool to get the number of the current step.",
-    "GetRemainingStep": "Useful Unity tool to get the number of the remaining steps.",
-    "CheckStepStatusVR": "Useful Unity tool to check if the current step in Unity is accomplished correctly or not. If the current assembly sequence recorded in Unity is the same as the manual assembly sequence, then it is correct, otherwise, it is incorrect.",
-    "APICallObjectRecognitionAR": "Useful AR tool to call the VLM agent to identify LEGO pieces based on the provided video streaming data from AR glasses and highlights the recognized pieces in the AR environment.",
-    "APICallCheckStepStatusAR": "Useful AR tool to call the VLM agent to determine if the current assembly step is completed correctly or not, using the provided video streaming data from AR glasses as input."
-}
-
 sender_info_dict = {
     'Human': 'Human request as an input',
     'AI': 'AI agent response as an output',
@@ -74,70 +53,52 @@ async def generate_response(query: str, agent_executor: AgentExecutor) -> str:
 
 async def unity_simulation_response(function_name, **params):
     """
-    Simulates various Unity interfaces.
+    Simulates various Unity and AR interfaces using a response dictionary.
     """
-    if function_name == "StartAssemble":
-        unity_response = "Initiating the assembly process."
-    elif function_name == "NextStep":
-        unity_response = "Moving to the next assembly step."
-    elif function_name == "FrontStep":
-        unity_response = "Going back to the previous assembly step."
-    elif function_name == "Reshow":
-        unity_response = "Showing the current assembly step."
-    elif function_name == "PrintTipsInfo":
-        unity_response = "Displaying step instructions."
-    elif function_name == "FinishedVideo":
-        unity_response = "Ending the assembly process and showing a video of the assembled LEGO bricks."
-    elif function_name == "Explode":
-        unity_response = "Triggering an explosion for detailed viewing."
-    elif function_name == "Recover":
-        unity_response = "Restoring the initial state of the VR objects after an explosion."
-    elif function_name.startswith("GoToStep"):
-        step_number = int(function_name.split("(")[1].split(")")[0])
-        unity_response = f"Going to assembly step {step_number}."
-    elif function_name == "Enlarge":
-        unity_response = "Enlarging or zooming out the current object."
-    elif function_name == "Shrink":
-        unity_response = "Shrinking or zooming in on the current object."
-    elif function_name == "Rotate":
-        unity_response = "Rotating the current object to a direction."
-    elif function_name == "ShowPieces":
-        unity_response = "Showing all candidate LEGO pieces to be assembled."
-    elif function_name == "HighlightCorrectComponents":
-        unity_response = "Highlighting correct attachment points and components."
-    elif function_name == "GetCurrentStep":
-        unity_response = "Getting the number of the current step."
-    elif function_name == "GetRemainingStep":
-        unity_response = "Getting the number of the remaining steps."
-    elif function_name == "CheckStepStatusVR":
-        unity_response = "Checking if the current step in Unity is accomplished correctly or not."
-    elif function_name.startswith("APICallObjectRecognitionAR"):
-        video_data = params.get("videoData", "")
-        unity_response = f"Calling VLM to identify LEGO pieces based on the provided video data: {video_data}."
-    elif function_name.startswith("APICallCheckStepStatusAR"):
-        video_data = params.get("videoData", "")
-        unity_response = f"Calling VLM to check if the current assembly step is completed correctly using video data: {video_data}."
+    function_name = function_name.strip()
+    unity_callable_functions = {
+        "StartAssemble": "Assembly process initiated successfully.",
+        "NextStep": "Moved to the next assembly step.",
+        "FrontStep": "Went back to the previous assembly step.",
+        "Explode": "Triggered explosion for detailed viewing.",
+        "Recover": "Restored the initial state of AR objects after an explosion.",
+        "FinishedVideo": "Ended the assembly process. Showing a video of the assembled LEGO bricks.",
+        "ReShow": "Repeating the current assembly step.",
+        "Enlarge": "Enlarged or zoomed out the current object.",
+        "Shrink": "Shrunk or zoomed in on the current object.",
+        "GoToStep": f"Moved to assembly step {params}.",
+        "Rotate": "Rotated the current object to the specified direction.",
+        "ShowPieces": "Showing all candidate LEGO pieces to be assembled.",
+        "HighlightCorrectComponents": "Highlighted correct attachment points and components.",
+        "GetCurrentStep": "Got the number of the current step.",
+        "GetRemainingStep": "Got the number of the remaining steps.",
+        "CheckStepStatusVR": "Checked if the current step in Unity is accomplished correctly or not.",
+        "APICallObjectRecognitionAR": "Called VLM to identify LEGO pieces based on provided video streaming data from AR glasses. Highlighting recognized pieces in the AR environment.",
+        "APICallCheckStepStatusAR": "Called VLM to determine if the current assembly step is completed correctly or not, using the provided video streaming data from AR glasses."
+    }
+
+    if function_name in unity_callable_functions:
+        unity_response = unity_callable_functions[function_name]
     else:
         unity_response = f"Sorry, function {function_name} is not implemented yet."
 
     return unity_response
 
-
-async def unity_simulation_response(function_name, **params):
-    """
-    This simulates the AR application is always running to reply DA's request when receiving its message.
-    """
-    if function_name in unity_callable_functions or True:
-        responses = [
-            f"Great, function {function_name} called successfully.",
-            f"Sorry, function {function_name} called unsuccessfully.",
-            f"Sorry, you have to wait, I am trying to call function {function_name}."
-        ]
-        weights = [0.9, 0.0, 0.1]
-        unity_response = random.choices(responses, weights=weights)[0]
-    else:
-        unity_response = f"Sorry, function {function_name} is not implemented yet."
-    return unity_response
+# async def unity_simulation_response(function_name, **params):
+#     """
+#     This simulates the AR application is always running to reply DA's request when receiving its message.
+#     """
+#     if function_name in unity_callable_functions or True:
+#         responses = [
+#             f"Great, function {function_name} called successfully.",
+#             f"Sorry, function {function_name} called unsuccessfully.",
+#             f"Sorry, you have to wait, I am trying to call function {function_name}."
+#         ]
+#         weights = [0.9, 0.0, 0.1]
+#         unity_response = random.choices(responses, weights=weights)[0]
+#     else:
+#         unity_response = f"Sorry, function {function_name} is not implemented yet."
+#     return unity_response
 
 # Use a global variable to store the WebSocket connection
 global_websocket = None
@@ -183,7 +144,7 @@ async def websocket_endpoint_chatbot(websocket: WebSocket):
 
             # Perform dialogue processing here
             # You can call Unity tools or any other logic
-            sender, info = message.split(":", 1)
+            sender, info = message.split(": ", 1)
             sender = sender.strip()
             if sender in ['Human', 'Unity']:
                 prefix_sender = 'AI'
