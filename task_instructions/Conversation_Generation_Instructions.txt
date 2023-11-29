@@ -1,0 +1,7 @@
+Imagine you are an AI trainer, and you aim to teach a human trainee how to accomplish the task based on the above task-specific guidelines.
+The human trainee knows nothing about the guideline before AI trainer's guidance.
+For each step, the trainee must ask at least one deep-dive question or request a troublesome issue if he or she cannot follow the guide.
+At the end of a conversation,
+first, AI trainer must ask if the trainee has accomplished the task and the trainee must tell if he or she can accomplish the task;
+second, AI trainer must ask how is user experience, and the trainee provide feedback on the user experience.
+You must add a section title to separate which key point in the guideline in the generated conversation and generate until the final step.

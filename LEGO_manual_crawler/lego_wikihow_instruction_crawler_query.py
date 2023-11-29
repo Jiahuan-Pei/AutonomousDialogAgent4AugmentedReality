@@ -20,7 +20,7 @@ seed_object = 'furniture'
 seed_queries = [f'{query_prefix} make a {seed_object}', f'{query_prefix} build a {seed_object}', f'{query_prefix} assemble a {seed_object}']
 
 # Define the directory where you want to save the downloaded resources
-output_directory = os.path.join(os.path.dirname(os.getcwd()), "instructions")
+output_directory = os.path.join(os.path.dirname(os.getcwd()), "manuals")
 # Create the output directory if it doesn't exist
 os.makedirs(output_directory, exist_ok=True)
 

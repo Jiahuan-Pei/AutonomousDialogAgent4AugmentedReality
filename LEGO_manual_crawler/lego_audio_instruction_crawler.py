@@ -8,8 +8,8 @@ from bs4 import BeautifulSoup
 base_url = "https://legoaudioinstructions.com/instructions/"
 
 # Define the directory where you want to save the downloaded resources
-# output_directory = os.path.join(os.path.dirname(os.path.abspath(__file__)), "instructions")
-output_directory = os.path.join(os.path.dirname(os.getcwd()), "instructions") # Parent dir of the current working dir
+# output_directory = os.path.join(os.path.dirname(os.path.abspath(__file__)), "manuals")
+output_directory = os.path.join(os.path.dirname(os.getcwd()), "manuals") # Parent dir of the current working dir
 
 # Create the output directory if it doesn't exist
 os.makedirs(output_directory, exist_ok=True)

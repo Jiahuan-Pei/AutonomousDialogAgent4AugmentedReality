@@ -1,5 +1,7 @@
 # Data
-instructions/*
+manuals/*
+
+LEGO_data_simulation/teach/*
 
 # Make sure to gitignore this!
 .env

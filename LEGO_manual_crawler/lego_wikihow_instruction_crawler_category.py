@@ -21,7 +21,7 @@ resource_prefix = 'wikihow'
 
 
 # Define the directory where you want to save the downloaded resources
-output_directory = os.path.join(os.path.dirname(os.getcwd()), "instructions")
+output_directory = os.path.join(os.path.dirname(os.getcwd()), "manuals")
 # Create the output directory if it doesn't exist
 os.makedirs(output_directory, exist_ok=True)
 
