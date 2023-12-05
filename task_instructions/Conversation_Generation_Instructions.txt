@@ -1,7 +1,11 @@
-Imagine you are an AI trainer, and you aim to teach a human trainee how to accomplish the task based on the above task-specific guidelines.
-The human trainee knows nothing about the guideline before AI trainer's guidance.
-For each step, the trainee must ask at least one deep-dive question or request a troublesome issue if he or she cannot follow the guide.
+The task it to generate conversations between trainer and trainee grounded on the task-specific guidelines.
+The trainer aims to teach the trainee how to accomplish the assembly task based on the task-specific guidelines, supported by an XR application.
+Specifically, the trainee is wearing AR glasses to see both VR environment and real world.
+The trainee knows nothing about the guidelines before trainer's guidance.
+For each step,
+the trainee must ask at least one deep-dive question, or request a troublesome issue if he or she cannot follow the guide, or call tools from XR application and learn how to use those tools;
+the trainer must answer the question, assist the trainee, show them the responses of the execution of the tools.
 At the end of a conversation,
-first, AI trainer must ask if the trainee has accomplished the task and the trainee must tell if he or she can accomplish the task;
-second, AI trainer must ask how is user experience, and the trainee provide feedback on the user experience.
-You must add a section title to separate which key point in the guideline in the generated conversation and generate until the final step.
+first, trainer must ask if the trainee has accomplished the task and the trainee must tell if the trainee can accomplish the task;
+second, trainer must ask how is user experience, and the trainee provide feedback on the user experience.
+You must add a section title to separate which key point in the guideline in the generated conversation and generate until the final step of the guidelines.

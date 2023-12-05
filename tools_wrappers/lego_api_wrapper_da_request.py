@@ -75,43 +75,6 @@ class LegoAPIWrapper:
             print(f"{datetime.now()}\t {self.sender_prefix} encountered an error: {str(e)}\n")
             return str(e)
 
-    # async def _unity_function(self, function_name: str, **kwargs):
-    #     try:
-    #         # Connect to the WebSocket
-    #         async with websockets.connect(self.url, extra_headers=[("Authorization", f"Bearer {self.secret_token}")]) as websocket:
-    #             # Sending message
-    #             request_message = f"{self.sender_prefix}: {function_name}"
-    #             await websocket.send(request_message)
-    #             print(f"{datetime.now()}\t {self.sender_prefix} sent >>>: {request_message}")
-    #
-    #             # Receiving message with timeout
-    #             try:
-    #                 # Check if the WebSocket is still open before attempting to receive
-    #                 if not websocket.open:
-    #                     print(f"{datetime.now()}\t {self.sender_prefix} WebSocket connection is not open\n")
-    #                     return "WebSocket connection is not open"
-    #
-    #                 # Receiving message with timeout
-    #                 response_message = await asyncio.wait_for(websocket.recv(), timeout=1.0)
-    #             except asyncio.TimeoutError:
-    #                 print(f"{datetime.now()}\t {self.sender_prefix} timed out while waiting for response\n")
-    #                 return "Timeout error"
-    #
-    #             if response_message.startswith('Unity:'):
-    #                 sender, response = response_message.split(': ')
-    #                 print(f"{datetime.now()}\t {self.sender_prefix} received Unity response <<<: {response_message}\n")
-    #                 return response
-    #             else:
-    #                 print(f"{datetime.now()}\t {self.sender_prefix} received unexpected response: {response_message}\n")
-    #
-    #     except websockets.exceptions.ConnectionClosedError as e:
-    #         print(f"{datetime.now()}\t {self.sender_prefix} WebSocket connection closed unexpectedly: {str(e)}\n")
-    #         return "WebSocket connection closed unexpectedly"
-    #
-    #     except Exception as e:
-    #         print(f"{datetime.now()}\t {self.sender_prefix} encountered an error: {str(e)}\n")
-    #         return str(e)
-
     @classmethod
     async def _unity_function_wrapper(cls, function_name, **kwargs):
         try:

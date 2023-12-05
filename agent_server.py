@@ -1,18 +1,20 @@
+"""
+    Websocket test
+        wscat -H "Authorization: Bearer cwivox2023" -c ws://localhost:8501/chatbot
+"""
+
 import os
 from fastapi import FastAPI, WebSocket
 import uvicorn
 from dotenv import load_dotenv, find_dotenv
 from langchain.agents import AgentExecutor
-from chain_setup import setup_agent, setup_agent_streaming
-from callbacks.agent_logger import AgentCallbackHandler
+# from chain_setup import setup_agent
+from LEGO_dialogue_agent_llama2.chain_setup_llama import setup_agent
 from langchain.input import get_colored_text
 import asyncio
 from datetime import datetime
 import websockets
 import callbacks
-from langchain.callbacks.streaming_aiter import AsyncIteratorCallbackHandler
-import json
-import random
 from starlette.websockets import WebSocketDisconnect
 
 import logging
@@ -38,10 +40,11 @@ async def authenticate_websocket(websocket: WebSocket):
     if not auth_header or auth_header != f"Bearer {os.getenv('AUTHORIZER')}":
         await websocket.close(code=4000, reason="Authentication failed")
 
-
+@app.post("/ask")
 async def generate_response(query: str, agent_executor: AgentExecutor) -> str:
     try:
-        response = agent_executor.run(query, callbacks=[callbacks.StreamCallbackHandler()])
+        response = agent_executor.run(query, callbacks=[callbacks.AgentCallbackHandler()])#['output']
+        # response = agent_executor.run(query, callbacks=[callbacks.StreamCallbackHandler()])
         print(get_colored_text("Response: >>>", "green"))
         print(get_colored_text(response, "green"))
     except Exception as e:
@@ -83,22 +86,6 @@ async def unity_simulation_response(function_name, **params):
         unity_response = f"Sorry, function {function_name} is not implemented yet."
 
     return unity_response
-
-# async def unity_simulation_response(function_name, **params):
-#     """
-#     This simulates the AR application is always running to reply DA's request when receiving its message.
-#     """
-#     if function_name in unity_callable_functions or True:
-#         responses = [
-#             f"Great, function {function_name} called successfully.",
-#             f"Sorry, function {function_name} called unsuccessfully.",
-#             f"Sorry, you have to wait, I am trying to call function {function_name}."
-#         ]
-#         weights = [0.9, 0.0, 0.1]
-#         unity_response = random.choices(responses, weights=weights)[0]
-#     else:
-#         unity_response = f"Sorry, function {function_name} is not implemented yet."
-#     return unity_response
 
 # Use a global variable to store the WebSocket connection
 global_websocket = None
@@ -144,19 +131,19 @@ async def websocket_endpoint_chatbot(websocket: WebSocket):
 
             # Perform dialogue processing here
             # You can call Unity tools or any other logic
-            sender, info = message.split(": ", 1)
-            sender = sender.strip()
-            if sender in ['Human', 'Unity']:
-                prefix_sender = 'AI'
-                response = await generate_response(info, agent_executor)    # Call AI agent!
-                # For now, let's echo back the message
-                await websocket.send_text(f'{prefix_sender}: {response}')
-                print(get_colored_text(f"{datetime.now()}\t Server ({prefix_sender}) sent >>>: {message}", "red"))
-            elif sender in ['ToolUnity']:
+            if message.startswith('ToolUnity: '):
+                info = message.split(':')[1]
                 prefix_sender = 'Unity'
                 response = await unity_simulation_response(info)  # Call Unity App!
                 # For now, let's echo back the message
                 await websocket.send_text(f'{prefix_sender}: {response}')
+            else:
+                # if sender in ['Human', 'Unity']:
+                prefix_sender = 'AI'
+                response = await generate_response(message, agent_executor)  # Call AI agent!
+                # For now, let's echo back the message
+                await websocket.send_text(f'{prefix_sender}: {response}')
+                print(get_colored_text(f"{datetime.now()}\t Server ({prefix_sender}) sent >>>: {message}", "red"))
         except WebSocketDisconnect as e:
             print(f"WebSocketDisconnect: {e}")
         except Exception as e:

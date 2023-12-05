@@ -46,15 +46,17 @@ class Config():
         'camel'
     ]
     data_name = '-'.join(dataset_names)
-    teach_data_dir = "/media/PampusData/jpei/teach-dataset/edh_instances"
+
+    teach_data_dir = f"{storage_dir}/teach-dataset/edh_instances"   # /media/PampusData/jpei/teach-dataset/edh_instances
 
     # Model
     # base_model_id = "meta-llama/Llama-2-7b-hf"
     base_model_id = f'{storage_dir}/transformer_data/{base_model_name}'  # local model dir: /media/PampusData/jpei/transformer_data/llama-2-7b-chat
     run_name = f'{base_model_name}-{data_name}-{datetime.now().strftime("%Y-%m-%d-%H-%M")}'
-    ft_model_id = f'{storage_dir}/{project}/{run_name}'  # /media/PampusData/vox-finetune/llama-2-7b-chat
+    ft_model_id = f'{storage_dir}/{project}/{run_name}'  # /media/PampusData/vox-finetune/[run_name]
     checkpoint_name = f'checkpoint-{max_steps}'
     ft_ckpt_id = f'{ft_model_id}/{checkpoint_name}'
+    output_dir = f'{storage_dir}/{project}/evaluation_results'  # /media/PampusData/vox-finetune/results
 
     bnb_config = BitsAndBytesConfig(
         load_in_4bit=True,
@@ -155,25 +157,21 @@ def load_train_valid_test_datasets(dataset_names, mode='train'):
         dataset_list.append(load_local_dataset('teach'))
     if 'gpt_teacher' in dataset_names:
         gpt_teacher_dataset = load_dataset("causal-lm/gpt_teacher", split=['train', 'validation[:50%]', 'validation[50%:]'])
+        gpt_teacher_dataset = DatasetDict({"train": gpt_teacher_dataset[0], "validation": gpt_teacher_dataset[1], "test": gpt_teacher_dataset[2]})
         dataset_list.append(gpt_teacher_dataset)
     if 'gpt4tools' in dataset_names:
         gpt4tools_dataset = load_dataset("causal-lm/gpt4tools", split=['train', 'validation[:50%]', 'validation[50%:]'])
+        gpt4tools_dataset = DatasetDict({"train": gpt4tools_dataset[0], "validation": gpt4tools_dataset[1], "test": gpt4tools_dataset[2]})
         dataset_list.append(gpt4tools_dataset)
     if 'camel' in dataset_names:
         camel_dataset = load_dataset("causal-lm/camel", split=['train', 'validation[:50%]', 'validation[50%:]'])
+        camel_dataset = DatasetDict({"train": camel_dataset[0], "validation": camel_dataset[1], "test": camel_dataset[2]})
         dataset_list.append(camel_dataset)
 
     if mode == 'train':
         # Combine datasets
         combined_dataset_train = concatenate_datasets([d['train'] for d in dataset_list])
-        validation_dataset_list = []
-        for d in dataset_list:
-            if 'test' not in d:
-                validation_dataset_list.append(d[1])    # .remove_columns("instruction")
-            else:
-                validation_dataset_list.append(['validation'])
-
-        combined_dataset_valid = concatenate_datasets(validation_dataset_list)
+        combined_dataset_valid = concatenate_datasets([d['validation'] for d in dataset_list])
 
         # Tokenize dateaset
         tokenized_train_dataset = combined_dataset_train.map(generate_and_tokenize_prompt2)
@@ -181,18 +179,12 @@ def load_train_valid_test_datasets(dataset_names, mode='train'):
 
         return tokenized_train_dataset, tokenized_val_dataset
     elif mode == 'test':
-        test_dataset_list = []
-        for d in dataset_list:
-            if 'test' in d:
-                test_dataset_list.append(d['test'])
-            else:
-                test_dataset_list.append(d[2])
-        combined_dataset_test = concatenate_datasets(test_dataset_list)
-        test_dataset_list.append(combined_dataset_test)
+        test_dataset_list = [d['test'] for d in dataset_list]
         return test_dataset_list
 
 
 def load_base_model(config):
+    print('Loading base model:')
     base_model = AutoModelForCausalLM.from_pretrained(
         config.base_model_id,
         quantization_config=config.bnb_config
@@ -201,6 +193,7 @@ def load_base_model(config):
 
 
 def load_peft_model(config):
+    print('Loading finetuned model:')
     peft_config = PeftConfig.from_pretrained(config.ft_model_id)
     peft_model = AutoModelForCausalLM.from_pretrained(
         peft_config.base_model_name_or_path,
@@ -213,24 +206,9 @@ def load_peft_model(config):
 
 
 def load_models(config):
-    print('Loading finetuned model:')
     peft_model = load_peft_model(config)
-    print('Loading raw model:')
     base_model = load_base_model(config)
     return base_model, peft_model
 
 
-def set_accelerator():
-    from accelerate import FullyShardedDataParallelPlugin, Accelerator
-    from torch.distributed.fsdp.fully_sharded_data_parallel import FullOptimStateDictConfig, FullStateDictConfig
-
-    fsdp_plugin = FullyShardedDataParallelPlugin(
-        state_dict_config=FullStateDictConfig(offload_to_cpu=True, rank0_only=False),
-        optim_state_dict_config=FullOptimStateDictConfig(offload_to_cpu=True, rank0_only=False),
-    )
-
-    accelerator = Accelerator(fsdp_plugin=fsdp_plugin)
-    return accelerator
-
-
-# config = Config()
+config = Config()

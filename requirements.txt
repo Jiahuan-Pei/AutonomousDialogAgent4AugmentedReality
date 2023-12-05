@@ -16,3 +16,5 @@ nest-asyncio
 textual
 toml
 slack_bolt
+evaluate
+rouge_score

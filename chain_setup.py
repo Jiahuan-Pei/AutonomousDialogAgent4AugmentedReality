@@ -31,7 +31,7 @@ class Config:
     OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
     temperature = 0.0
     verbose = True
-    print(f'OPENAI_API_KEY={OPENAI_API_KEY}')
+    # print(f'OPENAI_API_KEY={OPENAI_API_KEY}')
 
 
 def setup_memory() -> Tuple[Dict, ConversationBufferMemory]:

@@ -1,11 +1,13 @@
 """
 Submit:
-    nohup python evaluation.py > output.log 2>&1 &
+    nohup python evaluation.py > evaluation.output.log 2>&1 &
 Check:
     ps aux | grep "evaluation.py"
 GPU Usage:
     8912MiB / 24564MiB
 """
+import os.path
+
 import torch
 from peft import PeftConfig
 from datasets import load_dataset
@@ -13,175 +15,190 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from tqdm import tqdm
 import json
 
-from utils import *
+from utils import Config, load_train_valid_test_datasets, load_base_model
 
-from transformers import pipeline
+import transformers
 from datasets import load_metric
 from rouge import Rouge
-# from evaluate import load
-
-# perplexity = load("perplexity", module_type="metric")
-
-
-def compute_perplexity(model, tokenizer, text):
-    input_ids = tokenizer.encode(text, return_tensors="pt")
-    with torch.no_grad():
-        logits = model(input_ids).logits
-    perplexity = torch.exp(torch.nn.functional.cross_entropy(logits.view(-1, logits.shape[-1]), input_ids.view(-1)))
-    return perplexity.item()
+import evaluate
+import numpy as np
+from langchain.llms import HuggingFacePipeline
 
 
-def compute_perplexity(model, tokenizer, text):
-    input_ids = tokenizer.encode(text, return_tensors="pt")
-    with torch.no_grad():
-        logits = model(input_ids).logits
-    perplexity = torch.exp(torch.nn.functional.cross_entropy(logits.view(-1, logits.shape[-1]), input_ids.view(-1)))
-    return perplexity.item()
-
-
-def compute_metrics(evaluation_results, tokenizer):
+def fast_compute_metrics(predictions, references, tokenizer):
     """
     :param evaluation_result:
     # Example usage:
     evaluation_results = {
         'input': "Input prompt",
-        'base_generated': "Generated response by base model",
-        'check_generated': "Generated response by check model",
+        'prediction': "Generated response",
         'reference': "Reference response",
     }
     :param tokenizer:
     :return:
     """
-    all_bleu_base = []
-    all_bleu_check = []
-    all_rouge_base = []
-    all_rouge_check = []
-    all_overlap_base = []
-    all_overlap_check = []
+    bleu = evaluate.load("bleu")  # Measures the similarity between the generated text and reference text based on n-grams.
+    rouge = evaluate.load('rouge')  # Evaluates the overlap between the generated text and reference text in terms of n-grams and word sequences.
+    meteor = evaluate.load('meteor')  # Considers precision, recall, and harmonized mean of precision and recall with stemming and synonymy matching.
 
-
-    # Initialize BLEU metric
-    bleu_metric = load_metric("bleu")
-    # Initialize ROUGE metric
-    rouge_metric = Rouge()
-
-    for evaluation_result in evaluation_results:
-        # Tokenize reference and generated responses
-        references = [evaluation_result['reference']]
-        base_generated = [evaluation_result['base_generated']]
-        check_generated = [evaluation_result['check_generated']]
-
-        # Compute BLEU scores
-        bleu_scores_base = bleu_metric.compute(predictions=base_generated, references=references)
-        bleu_scores_check = bleu_metric.compute(predictions=check_generated, references=references)
-
-        # Compute ROUGE scores
-        rouge_scores_base = rouge_metric.get_scores(base_generated[0], references[0])
-        rouge_scores_check = rouge_metric.get_scores(check_generated[0], references[0])
-
-        # Compute token overlap between generated and reference
-        reference_tokens = set(tokenizer.tokenize(references[0]))
-        base_generated_tokens = set(tokenizer.tokenize(base_generated[0]))
-        check_generated_tokens = set(tokenizer.tokenize(check_generated[0]))
-        overlap_base = len(reference_tokens.intersection(base_generated_tokens))
-        overlap_check = len(reference_tokens.intersection(check_generated_tokens))
-
-        # Aggregate metrics for each sample
-        all_bleu_base.append(bleu_scores_base['score'])
-        all_bleu_check.append(bleu_scores_check['score'])
-        all_rouge_base.append(rouge_scores_base[0]['rouge-1']['f'])
-        all_rouge_check.append(rouge_scores_check[0]['rouge-1']['f'])
-        all_overlap_base.append(overlap_base)
-        all_overlap_check.append(overlap_check)
-
-    # Compute mean or other aggregation for corpus-level metrics
     corpus_metrics = {
-        'Mean_BLEU_Base': np.mean(all_bleu_base),
-        'Mean_BLEU_Check': np.mean(all_bleu_check),
-        'Mean_ROUGE_Base': np.mean(all_rouge_base),
-        'Mean_ROUGE_Check': np.mean(all_rouge_check),
-        'Mean_Overlap_Base': np.mean(all_overlap_base),
-        'Mean_Overlap_Check': np.mean(all_overlap_check),
+        'BLEU': bleu.compute(predictions=predictions, references=[[result] for result in references]),
+        'ROUGE': rouge.compute(predictions=predictions, references=references),
+        'METOR': meteor.compute(predictions=predictions, references=references),
     }
+
 
     return corpus_metrics
 
 
-def main_evaluation(base_model=None, check_model=None, check_model_id=None):
-    config = Config()
-    tokenizer = config.tokenizer
-
-    # Load test datasets
-    test_dataset_list = load_train_valid_test_datasets(config.dataset_names, mode='test')
-
+def main_evaluation(config, eval_model=None, eval_dataset_list=None):
     # Load two models before and after fine-tuning
-    if base_model and check_model:
-        pass
+    if eval_model is None:
+        model = load_base_model(config)
+        print('Load base model.')
     else:
-        config.ft_model_id = check_model_id
-        base_model, check_model = load_models(config)
+        model = eval_model
+        print('Reuse loaded the model.')
 
     # Set the valuation mode of the models
-    base_model.eval()
-    check_model.eval()
+    model.eval()
 
-    # Load test dataset
+    # Load tokenizer
+    tokenizer = config.tokenizer
+    max_tokens = config.max_length
+    batch_size = 8
 
-    # Initialize a list to store generated and reference response pairs
-    base_perplexity_list = []
-    check_perplexity_list = []
-
-    dataset_names = config.dataset_names + ['combination']
+    # Load test datasets
+    if eval_dataset_list is None:
+        test_dataset_list = load_train_valid_test_datasets(config.dataset_names, mode='test')
+        dataset_names = config.dataset_names + ['combination']
+    else:
+        test_dataset_list = eval_dataset_list
 
     # Evaluate the model on the test dataset
     for i, test_dataset in enumerate(test_dataset_list):
-        dataset_name = dataset_names[i]
-        base_predictions = []
-        check_predictions = []
-        evaluation_results = []
-        for example in tqdm(test_dataset):
-            input_prompt = example['input']
-            reference_response = example['output']
+        dataset_name = dataset_names[i] if eval_dataset_list is None else 'demo_dataset'
+        print(dataset_name + '-'*10 + str(len(test_dataset)))
+        # evaluation_results = []
+        inputs = [example['input'] for example in test_dataset]
+        references = [example['output'] for example in test_dataset]
+        predictions = []
+        perplexity_list = []
 
-            # Tokenize the input prompt
-            model_input = tokenizer(input_prompt, return_tensors="pt").to("cuda")
+        # Tokenize the entire test dataset
+        tokenized_inputs = tokenizer([f"### Question: {example['input']}\n ### Answer: " for example in test_dataset], return_tensors="pt", padding=True, truncation=True, max_length=max_tokens)
 
-            # Generate a response from the model
+        for batch_start in tqdm(range(0, len(tokenized_inputs['input_ids']), batch_size)):
+            batch_model_inputs = {
+                'input_ids': tokenized_inputs['input_ids'][batch_start:batch_start + batch_size],
+                'attention_mask': tokenized_inputs['attention_mask'][batch_start:batch_start + batch_size]
+            }
+            batch_model_inputs = {k: v.to("cuda") for k, v in batch_model_inputs.items()}
+
+            # Generate responses from the model
             with torch.no_grad():
-                # generated_ids = check_model.generate(input_ids, max_new_tokens=256, pad_token_id=2, padding_side='left')
-                base_generated_ids = base_model.generate(**model_input, max_new_tokens=256, pad_token_id=2)
-                check_generated_ids = check_model.generate(**model_input, max_new_tokens=256, pad_token_id=2)
+                batch_generated_ids = model.generate(**batch_model_inputs, max_new_tokens=max_tokens, pad_token_id=2)
+                batch_logits = model(**batch_model_inputs).logits
+                batch_logits_flat = batch_logits.view(-1, batch_logits.size(-1))
+                batch_references_flat = batch_model_inputs["input_ids"].view(-1)
+                cross_entropy_loss = torch.nn.functional.cross_entropy(batch_logits_flat, batch_references_flat)
+                batch_perplexity = torch.exp(cross_entropy_loss).item()
+                perplexity_list.append(batch_perplexity)
 
-            # Decode the generated response
-            base_generated_response = tokenizer.decode(base_generated_ids[0], skip_special_tokens=True)
-            check_generated_response = tokenizer.decode(check_generated_ids[0], skip_special_tokens=True)
-            base_predictions.append(base_generated_response)
-            check_predictions.append(check_generated_response)
+            generate_text = transformers.pipeline(
+                model=model,
+                batch_size=batch_size,
+                tokenizer=tokenizer,
+                return_full_text=True,  # langchain expects the full text
+                task='text-generation',
+                # we pass model parameters here too
+                temperature=0.0,  # 'randomness' of outputs, 0.0 is the min and 1.0 the max
+                max_new_tokens=512,  # mex number of tokens to generate in the output
+                repetition_penalty=1.1  # without this output begins repeating
+            )
+            # batch_generated_responses = tokenizer.batch_decode(batch_generated_ids[0], skip_special_tokens=True)
+            from langchain.llms import HuggingFacePipeline
+            llm = HuggingFacePipeline(pipeline=generate_text)
+            batch_generated_responses = llm(batch_generated_ids[0])
 
-            # Save the generated and reference responses
-            evaluation_results.append({
-                'input': input_prompt,
-                'base_generated': base_generated_response,
-                'check_generated': check_generated_response,
-                'reference': reference_response
-            })
+            predictions.extend(batch_generated_responses)
 
-        # print(evaluation_results)
-        metrics = compute_metrics(evaluation_results, tokenizer)
+            # # Iterate over each example in the batch
+            # for example_idx, generated_id in enumerate(generated_ids):
+            #     # Compute perplexity
+            #     logits_flat = logits[example_idx].view(-1, logits.size(-1))
+            #     references_flat = batch_model_inputs["input_ids"][example_idx].view(-1)
+            #
+            #     # Check for NaN in logits
+            #     if torch.isnan(logits_flat).any():
+            #         print("NaN found in logits. Skipping example.")
+            #         continue
+            #
+            #     # Check for infinite logits
+            #     if not torch.isfinite(logits_flat).all():
+            #         print("Infinite logits found. Skipping example.")
+            #         continue
+            #
+            #     cross_entropy_loss = torch.nn.functional.cross_entropy(logits_flat, references_flat)
+            #
+            #     # Check for NaN in loss
+            #     if torch.isnan(cross_entropy_loss):
+            #         print("NaN found in cross-entropy loss. Skipping example.")
+            #         continue
+            #
+            #     perplexity = torch.exp(cross_entropy_loss).item()
+            #
+            #     # Check for NaN in perplexity
+            #     if np.isnan(perplexity):
+            #         print("NaN found in perplexity. Skipping example.")
+            #         continue
+            #
+            #     # Decode the generated response
+            #     generated_response = tokenizer.decode(generated_id[0], skip_special_tokens=True)
+            #
+            #     # Save the generated and reference responses
+            #     evaluation_results.append({
+            #         'input': test_dataset[batch_start + example_idx]['input'],
+            #         'prediction': generated_response,
+            #         'reference': test_dataset[batch_start + example_idx]['output'],
+            #         'perplexity': perplexity
+            #     })
 
-        # metrics['Mean_Perplexity_Base'] = perplexity.compute(predictions=base_predictions, model_id='gpt2')
-        # metrics['Mean_Perplexity_Check'] = perplexity.compute(predictions=check_predictions, model_id='gpt2')
+            # Monitor GPU memory usage
+            current_memory_allocated = torch.cuda.memory_allocated()
+            max_memory_allocated = torch.cuda.max_memory_allocated()
+            print(f"Current Memory Allocated: {current_memory_allocated / (1024 ** 3):.2f} GB")
+            print(f"Max Memory Allocated: {max_memory_allocated / (1024 ** 3):.2f} GB")
+            # Empty GPU cache to release memory
+            torch.cuda.empty_cache()
 
-        print(f'{i}\t{dataset_name}\n{metrics}\n'+'-'*10)
+        # references = [result['reference'] for result in evaluation_results]
+        # predictions = [result['prediction'] for result in evaluation_results]
 
-        # Save the generated and reference responses to a JSON file
-        with open(f'{config}/{dataset_name}_evaluation_results.json', 'w') as json_file:
-            json.dump(evaluation_results, json_file)  # indent=2
+        # Compute evaluation metrics
+        metrics = fast_compute_metrics(references, predictions, tokenizer)
 
+        # metrics['corpus_perplexity'] = np.nanmean([result['perplexity'] for result in evaluation_results])  # ignore nan
+        metrics['corpus_perplexity'] = np.nanmean(perplexity_list)  # ignore nan
+
+        print(json.dumps(metrics, indent=4))
+
+        if not os.path.exists(config.output_dir):
+            os.mkdir(config.output_dir)
+
+        evaluation_results = [{"input": i, "reference": r, "prediction": p} for (i, r, p) in zip(*[inputs, references, predictions])]
+
+        with open(f'{config.output_dir}/{dataset_name}_evaluation_results.json', 'w') as json_file:
+            json.dump(evaluation_results, json_file, indent=2)
 
     return
 
 
-if __name__ == '__main__':
+def test_main_evaluation():
+    config = Config()
+    demo_dataset = load_dataset("Jiahuan/teach_edh", split='test[:1%]', use_auth_token=True)
+    main_evaluation(config, eval_dataset_list=[demo_dataset])
 
-    main_evaluation(check_model_id='/media/PampusData/jpei/vox-finetune/llama-2-7b-chat-teach-gpt_teacher-gpt4tools-camel-2023-11-28-14-12')
+
+if __name__ == '__main__':
+    test_main_evaluation()
