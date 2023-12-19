@@ -1,28 +1,27 @@
 """
 Submit:
     nohup python evaluation.py > evaluation.output.log 2>&1 &
+    nohup python evaluation.py --dataset_id Jiahuan/vox_arta_lego > llama2_arta_lego_evaluation.output.log 2>&1 &
+    nohup python evaluation.py --model_id Jiahuan/voxreality-arta-llama2-7b-chat-v3 > finetune_teach_edh_evaluation.output.log 2>&1 &
 Check:
     ps aux | grep "evaluation.py"
+    watch -n 1 nvidia-smi
 GPU Usage:
-    8912MiB / 24564MiB
+    17GiB / 24GiB
 """
 import os.path
-
-import torch
-from peft import PeftConfig
-from datasets import load_dataset
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
-from tqdm import tqdm
 import json
-
-from utils import Config, load_train_valid_test_datasets, load_base_model
-
-import transformers
-from datasets import load_metric
-from rouge import Rouge
-import evaluate
+from tqdm import tqdm
 import numpy as np
+import torch
+import transformers
+from datasets import load_dataset
+import evaluate
 from langchain.llms import HuggingFacePipeline
+import argparse
+from transformers import AutoTokenizer
+
+from utils import Config, load_train_valid_test_datasets, load_model_singleGPU, load_peft_model_singleGPU, formatting_func_inference, load_peft_model, load_base_model
 
 
 def fast_compute_metrics(predictions, references, tokenizer):
@@ -51,154 +50,94 @@ def fast_compute_metrics(predictions, references, tokenizer):
     return corpus_metrics
 
 
-def main_evaluation(config, eval_model=None, eval_dataset_list=None):
-    # Load two models before and after fine-tuning
-    if eval_model is None:
-        model = load_base_model(config)
-        print('Load base model.')
-    else:
-        model = eval_model
-        print('Reuse loaded the model.')
+def evaluate_main(model_id, dataset_id, output_dir, max_tokens, batch_size):
 
+    test_dataset = load_dataset(dataset_id, split='test', use_auth_token=True)
+
+    model = load_model_singleGPU(model_id)
     # Set the valuation mode of the models
     model.eval()
 
-    # Load tokenizer
-    tokenizer = config.tokenizer
-    max_tokens = config.max_length
-    batch_size = 8
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_id,
+        padding_side="left",
+        add_eos_token=True,
+        add_bos_token=True,
+    )
+    tokenizer.pad_token = tokenizer.eos_token
 
-    # Load test datasets
-    if eval_dataset_list is None:
-        test_dataset_list = load_train_valid_test_datasets(config.dataset_names, mode='test')
-        dataset_names = config.dataset_names + ['combination']
-    else:
-        test_dataset_list = eval_dataset_list
+    inputs = [example['input'] for example in test_dataset]
+    references = [example['output'] for example in test_dataset]
+    predictions = []
+    perplexity_list = []
 
-    # Evaluate the model on the test dataset
-    for i, test_dataset in enumerate(test_dataset_list):
-        dataset_name = dataset_names[i] if eval_dataset_list is None else 'demo_dataset'
-        print(dataset_name + '-'*10 + str(len(test_dataset)))
-        # evaluation_results = []
-        inputs = [example['input'] for example in test_dataset]
-        references = [example['output'] for example in test_dataset]
-        predictions = []
-        perplexity_list = []
+    # Tokenize the entire test dataset
+    tokenized_inputs = tokenizer([formatting_func_inference(example) for example in test_dataset], return_tensors="pt",
+                                 padding=True, truncation=True, max_length=max_tokens)
 
-        # Tokenize the entire test dataset
-        tokenized_inputs = tokenizer([f"### Question: {example['input']}\n ### Answer: " for example in test_dataset], return_tensors="pt", padding=True, truncation=True, max_length=max_tokens)
+    for batch_start in tqdm(range(0, len(tokenized_inputs['input_ids']), batch_size)):
+        batch_model_inputs = {
+            'input_ids': tokenized_inputs['input_ids'][batch_start:batch_start + batch_size],
+            'attention_mask': tokenized_inputs['attention_mask'][batch_start:batch_start + batch_size]
+        }
+        batch_model_inputs = {k: v.to("cuda") for k, v in batch_model_inputs.items()}
 
-        for batch_start in tqdm(range(0, len(tokenized_inputs['input_ids']), batch_size)):
-            batch_model_inputs = {
-                'input_ids': tokenized_inputs['input_ids'][batch_start:batch_start + batch_size],
-                'attention_mask': tokenized_inputs['attention_mask'][batch_start:batch_start + batch_size]
-            }
-            batch_model_inputs = {k: v.to("cuda") for k, v in batch_model_inputs.items()}
+        # Generate responses from the model
+        with torch.no_grad():
+            batch_generated_ids = model.generate(**batch_model_inputs, max_new_tokens=max_tokens, pad_token_id=2)
+            batch_logits = model(**batch_model_inputs).logits
+            batch_logits_flat = batch_logits.view(-1, batch_logits.size(-1))
+            batch_references_flat = batch_model_inputs["input_ids"].view(-1)
+            cross_entropy_loss = torch.nn.functional.cross_entropy(batch_logits_flat, batch_references_flat)
+            batch_perplexity = torch.exp(cross_entropy_loss / len(batch_references_flat)).item()
+            perplexity_list.append(batch_perplexity)
 
-            # Generate responses from the model
-            with torch.no_grad():
-                batch_generated_ids = model.generate(**batch_model_inputs, max_new_tokens=max_tokens, pad_token_id=2)
-                batch_logits = model(**batch_model_inputs).logits
-                batch_logits_flat = batch_logits.view(-1, batch_logits.size(-1))
-                batch_references_flat = batch_model_inputs["input_ids"].view(-1)
-                cross_entropy_loss = torch.nn.functional.cross_entropy(batch_logits_flat, batch_references_flat)
-                batch_perplexity = torch.exp(cross_entropy_loss).item()
-                perplexity_list.append(batch_perplexity)
+        batch_generated_responses = [t.split('### Response: ')[-1].strip() for t in tokenizer.batch_decode(batch_generated_ids, skip_special_tokens=True)]
 
-            generate_text = transformers.pipeline(
-                model=model,
-                batch_size=batch_size,
-                tokenizer=tokenizer,
-                return_full_text=True,  # langchain expects the full text
-                task='text-generation',
-                # we pass model parameters here too
-                temperature=0.0,  # 'randomness' of outputs, 0.0 is the min and 1.0 the max
-                max_new_tokens=512,  # mex number of tokens to generate in the output
-                repetition_penalty=1.1  # without this output begins repeating
-            )
-            # batch_generated_responses = tokenizer.batch_decode(batch_generated_ids[0], skip_special_tokens=True)
-            from langchain.llms import HuggingFacePipeline
-            llm = HuggingFacePipeline(pipeline=generate_text)
-            batch_generated_responses = llm(batch_generated_ids[0])
+        predictions.extend(batch_generated_responses)
 
-            predictions.extend(batch_generated_responses)
+        # Monitor GPU memory usage
+        current_memory_allocated = torch.cuda.memory_allocated()
+        max_memory_allocated = torch.cuda.max_memory_allocated()
+        print(f"Current Memory Allocated: {current_memory_allocated / (1024 ** 3):.2f} GB")
+        print(f"Max Memory Allocated: {max_memory_allocated / (1024 ** 3):.2f} GB")
+        # Empty GPU cache to release memory
+        torch.cuda.empty_cache()
 
-            # # Iterate over each example in the batch
-            # for example_idx, generated_id in enumerate(generated_ids):
-            #     # Compute perplexity
-            #     logits_flat = logits[example_idx].view(-1, logits.size(-1))
-            #     references_flat = batch_model_inputs["input_ids"][example_idx].view(-1)
-            #
-            #     # Check for NaN in logits
-            #     if torch.isnan(logits_flat).any():
-            #         print("NaN found in logits. Skipping example.")
-            #         continue
-            #
-            #     # Check for infinite logits
-            #     if not torch.isfinite(logits_flat).all():
-            #         print("Infinite logits found. Skipping example.")
-            #         continue
-            #
-            #     cross_entropy_loss = torch.nn.functional.cross_entropy(logits_flat, references_flat)
-            #
-            #     # Check for NaN in loss
-            #     if torch.isnan(cross_entropy_loss):
-            #         print("NaN found in cross-entropy loss. Skipping example.")
-            #         continue
-            #
-            #     perplexity = torch.exp(cross_entropy_loss).item()
-            #
-            #     # Check for NaN in perplexity
-            #     if np.isnan(perplexity):
-            #         print("NaN found in perplexity. Skipping example.")
-            #         continue
-            #
-            #     # Decode the generated response
-            #     generated_response = tokenizer.decode(generated_id[0], skip_special_tokens=True)
-            #
-            #     # Save the generated and reference responses
-            #     evaluation_results.append({
-            #         'input': test_dataset[batch_start + example_idx]['input'],
-            #         'prediction': generated_response,
-            #         'reference': test_dataset[batch_start + example_idx]['output'],
-            #         'perplexity': perplexity
-            #     })
+    # references = [result['reference'] for result in evaluation_results]
+    # predictions = [result['prediction'] for result in evaluation_results]
 
-            # Monitor GPU memory usage
-            current_memory_allocated = torch.cuda.memory_allocated()
-            max_memory_allocated = torch.cuda.max_memory_allocated()
-            print(f"Current Memory Allocated: {current_memory_allocated / (1024 ** 3):.2f} GB")
-            print(f"Max Memory Allocated: {max_memory_allocated / (1024 ** 3):.2f} GB")
-            # Empty GPU cache to release memory
-            torch.cuda.empty_cache()
+    # Compute evaluation metrics
+    metrics = fast_compute_metrics(references, predictions)
 
-        # references = [result['reference'] for result in evaluation_results]
-        # predictions = [result['prediction'] for result in evaluation_results]
+    # metrics['corpus_perplexity'] = np.nanmean([result['perplexity'] for result in evaluation_results])  # ignore nan
+    metrics['corpus_perplexity'] = np.nanmean(perplexity_list)  # ignore nan
 
-        # Compute evaluation metrics
-        metrics = fast_compute_metrics(references, predictions, tokenizer)
+    evaluation_results = json.dumps(metrics, indent=4)
 
-        # metrics['corpus_perplexity'] = np.nanmean([result['perplexity'] for result in evaluation_results])  # ignore nan
-        metrics['corpus_perplexity'] = np.nanmean(perplexity_list)  # ignore nan
+    print(evaluation_results)
 
-        print(json.dumps(metrics, indent=4))
+    with open(f'{output_dir}/{model_id.split("/")[-1]}_{dataset_id.split("/")[-1]}_llm_evaluation_results.json', 'w') as json_file:
+        json.dump(evaluation_results, json_file, indent=2)
 
-        if not os.path.exists(config.output_dir):
-            os.mkdir(config.output_dir)
+    if not os.path.exists(output_dir):
+        os.mkdir(output_dir)
 
-        evaluation_results = [{"input": i, "reference": r, "prediction": p} for (i, r, p) in zip(*[inputs, references, predictions])]
+    evaluation_output = [{"input": i, "reference": r, "prediction": p} for (i, r, p) in
+                          zip(*[inputs, references, predictions])]
 
-        with open(f'{config.output_dir}/{dataset_name}_evaluation_results.json', 'w') as json_file:
-            json.dump(evaluation_results, json_file, indent=2)
-
-    return
-
-
-def test_main_evaluation():
-    config = Config()
-    demo_dataset = load_dataset("Jiahuan/teach_edh", split='test[:1%]', use_auth_token=True)
-    main_evaluation(config, eval_dataset_list=[demo_dataset])
+    with open(f'{output_dir}/{model_id.split("/")[-1]}_{dataset_id.split("/")[-1]}_llm_evaluation_output.json', 'w') as json_file:
+        json.dump(evaluation_output, json_file, indent=2)
 
 
 if __name__ == '__main__':
-    test_main_evaluation()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--model_id', default='meta-llama/Llama-2-7b-chat-hf', type=str, help='the name or the abstract path of the model')
+    parser.add_argument('--dataset_id', default='Jiahuan/teach_edh', type=str, help='the name or the abstract path of the dataset')
+    parser.add_argument('--project_name', default='vox-finetune', type=str, help='the name or the abstract path of the dataset')
+    parser.add_argument('--output_dir', default='/media/Blue2TB3/jpei/evaluation_results', type=str, help='the name or the abstract path of the dataset')
+    parser.add_argument('--cache_dir', default='/media/Blue2TB3/jpei/cache-huggingface-2/datasets', type=str, help='the name or the abstract path of the dataset')
+    parser.add_argument('--max_tokens', default=512, type=int, help='max number of tokens')
+    parser.add_argument('--batch_size', default=8, type=int, help='batch size')
+    args = parser.parse_args()
+    evaluate_main(args.model_id, args.dataset_id, args.output_dir, args.max_tokens, args.batch_size)

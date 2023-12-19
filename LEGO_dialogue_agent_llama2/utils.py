@@ -10,6 +10,7 @@ import torch.backends.cudnn as cudnn
 from datasets import load_dataset, concatenate_datasets, DatasetDict
 from datetime import datetime
 from sklearn.model_selection import train_test_split
+from datasets import Dataset
 
 
 def set_random_seed(seed=None):
@@ -33,17 +34,18 @@ def set_random_seed(seed=None):
 class Config():
     # Hyperparameters
     max_length = 512  # This was an appropriate max length for my dataset
-    max_steps = 1000  # [500, 1000, 10000]
+    max_steps = 2000  # [500, 1000, 10000]
 
     # Data
     project = "vox-finetune"
     base_model_name = "llama-2-7b-chat"
-    storage_dir = '/media/PampusData/jpei'
+    # storage_dir = '/media/PampusData/jpei'
+    storage_dir = '/media/Blue2TB3/jpei'
     dataset_names = [
         'teach',
-        'gpt_teacher',
-        'gpt4tools',
-        'camel'
+        # 'gpt_teacher',
+        # 'gpt4tools',
+        # 'camel'
     ]
     data_name = '-'.join(dataset_names)
 
@@ -103,22 +105,39 @@ def wandb():
         os.environ["WANDB_PROJECT"] = wandb_project
 
 
-def formatting_func(example):
-    text = f"### Question: {example['input']}\n ### Answer: {example['output']}"
+DEFAULT_SYSTEM_PROMPT = """
+Below is a conversation between a human and an AI agent. Reply a response given the context.
+""".strip()
+
+
+def formatting_func_training(example):
+    text = f"""### Instruction: {DEFAULT_SYSTEM_PROMPT}
+    ### Context: {example['input']}
+    ### Response: {example['output']}
+    """.strip()
+    return text
+
+
+def formatting_func_inference(example):
+    text = f"""### Instruction: {DEFAULT_SYSTEM_PROMPT}
+    ### Context: {example['input']}
+    ### Response:
+    """.strip()
     return text
 
 
 def generate_and_tokenize_prompt(prompt):
-    return config.tokenizer(formatting_func(prompt))
+    return config.tokenizer(formatting_func_training(prompt))
 
 
 def generate_and_tokenize_prompt2(prompt):
     result = config.tokenizer(
-        formatting_func(prompt),
+        formatting_func_training(prompt),
         truncation=True,
         max_length=config.max_length,
         padding="max_length",
     )
+    # result["labels"] = result["input_ids"].copy()
     result["labels"] = result["input_ids"].copy()
     return result
 
@@ -141,7 +160,7 @@ def print_trainable_parameters(model):
 def load_local_dataset(name):
     if name == 'teach':
         # Preprocessed by teach_data_exploration.ipynb and save at teach_data_dir
-        teach_data_dir = "/media/PampusData/jpei/teach-dataset/edh_instances"
+        teach_data_dir = "/media/Blue2TB3/jpei/teach-dataset/edh_instances"
         train_dataset = load_dataset('json', data_files=f'{teach_data_dir}/teach_edh_train.jsonl', split='train')
         eval_dataset = load_dataset('json', data_files=f'{teach_data_dir}/teach_edh_valid.jsonl', split='train')
         test_dataset = load_dataset('json', data_files=f'{teach_data_dir}/teach_edh_test.jsonl', split='train')
@@ -183,11 +202,42 @@ def load_train_valid_test_datasets(dataset_names, mode='train'):
         return test_dataset_list
 
 
+def load_model_singleGPU(model_id):
+    print('Loading base model:')
+    base_model = AutoModelForCausalLM.from_pretrained(
+        model_id,
+        return_dict=True,
+        quantization_config=config.bnb_config,
+        device_map="auto",
+        trust_remote_code=True
+    )
+    return base_model
+
+
+def load_peft_model_singleGPU(peft_model_id):
+    from peft import PeftModel
+    print('Loading peft model:')
+    peft_config = PeftConfig.from_pretrained(peft_model_id)
+    peft_model = PeftModel.from_pretrained(
+        peft_config.base_model_name_or_path,
+        peft_model_id,
+        return_dict=True,
+        quantization_config=config.bnb_config,
+        device_map="auto",
+        trust_remote_code=True
+    )
+
+    return peft_model
+
+
 def load_base_model(config):
     print('Loading base model:')
     base_model = AutoModelForCausalLM.from_pretrained(
         config.base_model_id,
-        quantization_config=config.bnb_config
+        return_dict=True,
+        quantization_config=config.bnb_config,
+        device_map="auto",
+        trust_remote_code=True
     )
     return base_model
 

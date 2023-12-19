@@ -232,3 +232,5 @@ npx kill-port --port 8080
 [[repo]](https://github.com/gilfernandes/chat_functions)
 
 [2] BrickDream [[repo]](https://github.com/kukeya/2023-SWContest/tree/main)
+
+ln -s /media/Blue2TB3/jpei/cache-huggingface/ huggingface

@@ -149,9 +149,6 @@ def setup_agent() -> AgentExecutor:
 
     agent = initialize_agent(
         agent="chat-conversational-react-description",
-        # agent=AgentType.STRUCTURED_CHAT_ZERO_SHOT_REACT_DESCRIPTION,
-        # agent=AgentType.CHAT_ZERO_SHOT_REACT_DESCRIPTION,
-        # agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
         tools=tools,
         llm=llm,
         verbose=True,

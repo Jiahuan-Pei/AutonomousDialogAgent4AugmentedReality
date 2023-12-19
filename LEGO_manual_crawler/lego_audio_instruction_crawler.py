@@ -16,7 +16,7 @@ import numpy as np
 
 # Define the URL of the website to crawl
 base_url = "https://legoaudioinstructions.com/instructions/"
-base_data_dir = '/media/PampusData/jpei'
+base_data_dir = '/media/Blue2TB3/jpei'
 dataset_name = 'vox_arta_dataset'
 resource_prefix = 'lego'
 base_manual_dir = os.path.join(base_data_dir, dataset_name, "manuals", resource_prefix)  # /media/PampusData/jpei/vox_arta_dataset/manuals/lego
@@ -70,7 +70,9 @@ def download_resource(url, base_manual_dir, folder_name=None):
                     download_image(img_url, image_dir=image_dir)
 
             # Find all textual instructions and save json
-            text_list = [r.get_text().strip() for r in soup.find('div', class_='manual-table-container').find_all('div', 'row')]
+            # text_list = [r.get_text().strip() for r in soup.find('div', class_='manual-table-container').find_all('div', 'row')]
+            text_list = [r.get_text().strip() for r in soup.find('div', class_='manual-table-container').find_all('td')]
+            print(text_list)
             with open(os.path.join(folder_dir, f'{folder_name}.json'), 'w') as fw:
                 json_manual = {
                     'manual_id': folder_name,
@@ -139,3 +141,6 @@ if __name__ == "__main__":
     instruction_len_list = []
     extract_resources_from_page(base_url, base_manual_dir)
     print(np.mean(instruction_len_list))
+
+    # Download again if missing
+    # download_resource(url='https://legoaudioinstructions.com/'+'lego-60274-elite-police-lighthouse-capture-mobile', base_manual_dir='/media/Blue2TB3/jpei/vox_arta_dataset/manuals/lego', folder_name='lego-60274-elite-police-lighthouse-capture-mobile')
