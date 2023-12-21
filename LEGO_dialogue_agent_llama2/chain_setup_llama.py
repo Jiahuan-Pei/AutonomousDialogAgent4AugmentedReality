@@ -253,16 +253,35 @@ def setup_agent() -> AgentExecutor:
         "APICallCheckStepStatusAR(CurrentStamps)": "Useful AR tool to call the VLM agent to determine if the current assembly step is completed correctly or not, using the provided video streaming data from AR glasses as input."
     """
 
+    # examples = f"""
+    #     User: Yes, I'm ready.
+    #     Assistant: Fantastic! Let's proceed to the next step.
+    #     Assistant: Well done on completing the T-Rex! You've successfully built all the models in the LEGO 11001 Classic set. Now, it's time for the final questions. Have you been able to accomplish the task?
+    #     User: Yes, I have successfully built all the models.
+    #     Assistant: That's fantastic to hear! Congratulations on your accomplishment! Now, I'd like to ask about your user experience. How was your experience following the building instructions?
+    #     User: Overall, my experience was great. The instructions were clear and easy to follow. However, there were a few steps that I found a bit challenging, especially when assembling the window and the chimney. It would have been helpful to have some additional guidance or tips for those parts.
+    #     Assistant: Thank you for your feedback. I'll make sure to note that for future improvements. I'm glad to hear that you had a positive experience overall. Is there anything else you'd like to add?
+    #     User: No, that's all. Thank you for your guidance!
+    #     Assistant: You're welcome! It was my pleasure to assist you. If you have any more questions or need further assistance in the future, feel free to reach out. Happy building!
+    # """
     examples = f"""
-        User: Yes, I'm ready.
-        Assistant: Fantastic! Let's proceed to the next step.
+        Example 1:
+        ### Context:
+        User: Yes, I'm ready. Let's proceed to the next step.
+        ### Response
         Assistant: Well done on completing the T-Rex! You've successfully built all the models in the LEGO 11001 Classic set. Now, it's time for the final questions. Have you been able to accomplish the task?
+
+        Example 2:
+        ### Context:
         User: Yes, I have successfully built all the models.
+        ### Response:
         Assistant: That's fantastic to hear! Congratulations on your accomplishment! Now, I'd like to ask about your user experience. How was your experience following the building instructions?
+
+        Example 3:
+        ### Context:
         User: Overall, my experience was great. The instructions were clear and easy to follow. However, there were a few steps that I found a bit challenging, especially when assembling the window and the chimney. It would have been helpful to have some additional guidance or tips for those parts.
+        ### Response:
         Assistant: Thank you for your feedback. I'll make sure to note that for future improvements. I'm glad to hear that you had a positive experience overall. Is there anything else you'd like to add?
-        User: No, that's all. Thank you for your guidance!
-        Assistant: You're welcome! It was my pleasure to assist you. If you have any more questions or need further assistance in the future, feel free to reach out. Happy building!
     """
 
     short_task_reminder = f"""

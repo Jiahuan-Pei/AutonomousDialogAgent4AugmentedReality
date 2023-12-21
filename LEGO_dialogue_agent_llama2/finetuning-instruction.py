@@ -1,11 +1,8 @@
 """
 Submit:
-    nohup python finetuning.py > finetune.output.log 2>&1 &
-    nohup python finetuning.py --dataset=Jiahuan/vox_arta_lego --model_id_upload Jiahuan/voxreality-arta-lego-llama2-7b-chat > finetune_arta_lego_output.log 2>&1 &
-    nohup python finetuning.py --dataset=Jiahuan/vox_arta_lego --model_id_upload Jiahuan/voxreality-arta-lego-llama2-7b-chat > finetune_arta_lego_output.log 2>&1 &
-    nohup python finetuning.py --dataset=Jiahuan/teach_action --model_id_upload Jiahuan/voxreality-arta-llama2-7b-chat-action > finetune_output_teach_action.log 2>&1 &
+    nohup python finetuning-instruction.py --dataset=causal-lm/gpt_teacher --model_id_upload Jiahuan/gpt_teacher-llama2-7b-chat > finetune_gpt_teacher_output.log 2>&1 &
 Check:
-    ps aux | grep "finetuning.py"
+    ps aux | grep "finetuning-instruction.py"
 GPU Usage:
     8912MiB / 24564MiB
 """
@@ -23,6 +20,12 @@ import numpy as np
 import torch.backends.cudnn as cudnn
 from datasets import load_dataset, concatenate_datasets, DatasetDict
 
+# helper function to clean-up memory
+import torch, gc
+
+def clean_up():
+    gc.collect()
+    torch.cuda.empty_cache()
 
 DEFAULT_SYSTEM_PROMPT = """
 Below is a conversation between a human and an AI agent. Reply a response given the context.
@@ -30,7 +33,7 @@ Below is a conversation between a human and an AI agent. Reply a response given 
 
 
 def formatting_func_training(example):
-    text = f"""### Instruction: {DEFAULT_SYSTEM_PROMPT}
+    text = f"""### Instruction: {DEFAULT_SYSTEM_PROMPT}\n{example['instruction']}
     ### Context: {example['input']}
     ### Response: {example['output']}
     """.strip()
@@ -76,12 +79,14 @@ def load_train_valid_test_datasets(dataset_ids, mode='train'):
         # Combine datasets
         combined_dataset_train = concatenate_datasets([d['train'] for d in dataset_list])
         combined_dataset_valid = concatenate_datasets([d['validation'] for d in dataset_list])
+        combined_dataset_test = concatenate_datasets([d['test'] for d in dataset_list])
 
         # Tokenize dateaset
         tokenized_train_dataset = combined_dataset_train.map(generate_and_tokenize_prompt2)
         tokenized_val_dataset = combined_dataset_valid.map(generate_and_tokenize_prompt2)
+        tokenized_test_dataset = combined_dataset_test.map(generate_and_tokenize_prompt2)
 
-        return tokenized_train_dataset, tokenized_val_dataset
+        return tokenized_train_dataset, tokenized_val_dataset, tokenized_test_dataset
     elif mode == 'test':
         test_dataset_list = [d['test'] for d in dataset_list]
         return test_dataset_list
@@ -193,7 +198,7 @@ def main_finetune(config):
     )
     tokenizer.pad_token = tokenizer.eos_token
 
-    tokenized_train_dataset, tokenized_valid_dataset = load_train_valid_test_datasets(config.dataset_id)
+    tokenized_train_dataset, tokenized_valid_dataset, tokenized_test_dataset = load_train_valid_test_datasets(config.dataset_id)
 
     run_name = f'{config.model_id}-{config.dataset_id.split("/")[-1]}-{datetime.now().strftime("%Y-%m-%d-%H-%M")}'
     ft_model_id = f'{config.root_dir}/{config.project_name}/{run_name}'  # /media/PampusData/vox-finetune/[run_name]
@@ -296,6 +301,12 @@ def main_finetune(config):
     tokenizer.push_to_hub(config.model_id_upload, use_auth_token=True)
     merge_and_upload(ft_model_id, args)
 
+    ## Inference on test set
+    # eval_outs = trainer.predict(tokenized_test_dataset)
+    # # viewing metrics
+    # print(eval_outs.metrics)
+    # print(f"Finetuned Perplexity on test on: {math.exp(eval_outs['test_loss']):.2f}")
+
 
 def merge_and_upload(ft_model_id, args):
     # Empty GPU cache to release memory
@@ -317,8 +328,8 @@ def merge_and_upload(ft_model_id, args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_id', default='meta-llama/Llama-2-7b-chat-hf', type=str, help='the name or the abstract path of the base model')
-    parser.add_argument('--model_id_upload', default='Jiahuan/voxreality-arta-llama2-7b-chat-v3', type=str, help='the name or the abstract path of the model to be uploaded to hub')
-    parser.add_argument('--dataset_id', default='Jiahuan/teach_edh', type=str, help='the name or the abstract path of the dataset, or a concaticated list')
+    parser.add_argument('--model_id_upload', default='Jiahuan/gpt_teacher-llama2-7b-chat', type=str, help='the name or the abstract path of the model to be uploaded to hub')
+    parser.add_argument('--dataset_id', default='causal-lm/gpt_teacher', type=str, help='the name or the abstract path of the dataset, or a concaticated list')
     parser.add_argument('--root_dir', default='/media/Blue2TB3/jpei/', type=str, help='the name of the root dir for storage')
     parser.add_argument('--project_name', default='vox-finetune', type=str, help='the name or the project')
     parser.add_argument('--output_dir', default='/media/Blue2TB3/jpei/vox-finetune/', type=str, help='the name or the abstract path of the dataset')

@@ -105,17 +105,27 @@ We implement a toolkit (a set of APIs / interfaces) to call the services or func
 (See more implementation details at [lego_api_wrapper.py](LEGO_dialogue_agent_openai%2Ftools_wrappers%2Flego_api_wrapper.py))
 
 ### 4.1.1 Description of AR functions
-| No | AR functions  | Description                                                                |
-|----|---------------|----------------------------------------------------------------------------|
-| 1  | StartAssemble | to initiate the assembly process.                                          |
-| 2  | NextStep      | to move to the next assembly step.                                         |
-| 3  | FrontStep     | to go back to the previous assembly step.                                  |
-| 4  | Explode       | to trigger an explosion for detailed viewing.                              |
-| 5  | Recover       | to restore the initial state of the VR objects after explosion.            |
-| 6  | FinishedVideo | to end the assembly process and show a video of the assembled LEGO bricks. |
-| 7  | ReShow        | to repeat the current assembly step.                                       |
-| 8  | Enlarge       | to enlarge or zoom out the current object.                                 |
-| 9  | Shrink        | to shrink or zoom in the current object.                                   |
+| No | Tool Name                    | Description                                                                                                          |
+|----|------------------------------|----------------------------------------------------------------------------------------------------------------------|
+| 1  | StartAssemble                | Initiates the assembly process.                                                                                      |
+| 2  | NextStep                     | Moves to the next assembly step.                                                                                     |
+| 3  | FrontStep                    | Goes back to the previous assembly step.                                                                            |
+| 4  | Explode                      | Triggers an explosion for detailed viewing.                                                                         |
+| 5  | Recover                      | Restores the initial state of AR objects after an explosion.                                                         |
+| 6  | FinishedVideo                | Ends the assembly process and shows a video of the assembled LEGO bricks.                                            |
+| 7  | ReShow                       | Repeats the current assembly step.                                                                                  |
+| 8  | Enlarge                      | Enlarges or zooms out the current object.                                                                           |
+| 9  | Shrink                       | Shrinks or zooms in the current object.                                                                             |
+| 10 | GoToStep                     | Goes to the given assembly step number.                                                                             |
+| 11 | Rotate                       | Rotates the current object to a direction.                                                                         |
+| 12 | ShowPieces                   | Shows all candidate LEGO pieces to be assembled.                                                                   |
+| 13 | HighlightCorrectComponents   | Highlights correct attachment points and components.                                                               |
+| 14 | GetCurrentStep               | Gets the number of the current step.                                                                                |
+| 15 | GetRemainingStep             | Gets the number of the remaining steps.                                                                            |
+| 16 | CheckStepStatusVR            | Checks if the current step in Unity is accomplished correctly or not. |
+| 17 | APICallObjectRecognitionAR   | Calls the VLM agent to identify LEGO pieces based on the provided video streaming data from AR glasses and highlights the recognized pieces in the AR environment. |
+| 18 | APICallCheckStepStatusAR     | Calls the VLM agent to determine if the current assembly step is completed correctly or not, using the provided video streaming data from AR glasses as input. |
+                            |
 
 ### 4.1.2 Responses from AR functions
 To make the real-time interaction between AR application and DA. 

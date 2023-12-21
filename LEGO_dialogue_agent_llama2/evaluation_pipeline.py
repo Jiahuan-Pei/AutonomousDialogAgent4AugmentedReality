@@ -1,9 +1,7 @@
 """
 Submit:
-    nohup python evaluation.py > evaluation.output.log 2>&1 &
-    nohup python evaluation.py --dataset_id Jiahuan/vox_arta_lego > llama2_arta_lego_evaluation.output.log 2>&1 &
-    nohup python evaluation.py --dataset_id Jiahuan/vox_arta_lego --model_id Jiahuan/voxreality-arta-lego-llama2-7b-chat > vox_arta_lego_evaluation.output.log 2>&1 &
-    nohup python evaluation.py --model_id Jiahuan/voxreality-arta-llama2-7b-chat-v3 > finetune_teach_edh_evaluation.output.log 2>&1 &
+    nohup python evaluation_pipeline.py --dataset_id Jiahuan/vox_arta_lego --model_id meta-llama/Llama-2-7b-chat-hf > llama2_arta_lego_evaluation_pipeline.output.log 2>&1 &
+    nohup python evaluation_pipeline.py --dataset_id Jiahuan/vox_arta_lego --model_id Jiahuan/voxreality-arta-lego-llama2-7b-chat > vox_arta_lego_evaluation.output.log 2>&1 &
 Check:
     ps aux | grep "evaluation.py"
     watch -n 1 nvidia-smi
@@ -18,9 +16,10 @@ import torch
 import transformers
 from datasets import load_dataset
 import evaluate
-from langchain.llms import HuggingFacePipeline
 import argparse
 from transformers import AutoTokenizer
+from langchain.llms import HuggingFacePipeline
+from transformers import GenerationConfig, pipeline
 
 from utils import Config, load_train_valid_test_datasets, load_model_singleGPU, load_peft_model_singleGPU, formatting_func_inference, load_peft_model, load_base_model
 
@@ -72,28 +71,25 @@ def evaluate_main(model_id, dataset_id, output_dir, max_tokens, batch_size):
     predictions = []
     perplexity_list = []
 
-    # Tokenize the entire test dataset
-    tokenized_inputs = tokenizer([formatting_func_inference(example) for example in test_dataset], return_tensors="pt",
-                                 padding=True, truncation=True, max_length=max_tokens)
+    generation_config = GenerationConfig.from_pretrained(model_id)
+    generation_config.max_new_tokens = 512
+    generation_config.temperature = 0.0001
+    # generation_config.top_p = 0.95
+    # generation_config.do_sample = True
+    generation_config.repetition_penalty = 1.15
 
-    for batch_start in tqdm(range(0, len(tokenized_inputs['input_ids']), batch_size)):
-        batch_model_inputs = {
-            'input_ids': tokenized_inputs['input_ids'][batch_start:batch_start + batch_size],
-            'attention_mask': tokenized_inputs['attention_mask'][batch_start:batch_start + batch_size]
-        }
-        batch_model_inputs = {k: v.to("cuda") for k, v in batch_model_inputs.items()}
+    generate_text = pipeline(
+        "text-generation",
+        model=model,
+        tokenizer=tokenizer,
+        generation_config=generation_config,
+        batch_size=batch_size,
+        # temperature=0.0001
+    )
 
-        # Generate responses from the model
-        with torch.no_grad():
-            batch_generated_ids = model.generate(**batch_model_inputs, max_new_tokens=max_tokens, pad_token_id=2)
-            batch_logits = model(**batch_model_inputs).logits
-            batch_logits_flat = batch_logits.view(-1, batch_logits.size(-1))
-            batch_references_flat = batch_model_inputs["input_ids"].view(-1)
-            cross_entropy_loss = torch.nn.functional.cross_entropy(batch_logits_flat, batch_references_flat)
-            batch_perplexity = torch.exp(cross_entropy_loss / len(batch_references_flat)).item()
-            perplexity_list.append(batch_perplexity)
-
-        batch_generated_responses = [t.split('### Response: ')[-1].strip() for t in tokenizer.batch_decode(batch_generated_ids, skip_special_tokens=True)]
+    for batch_start in tqdm(range(0, len(inputs), batch_size)):
+        # batch_generated_responses = llm(inputs[batch_start:batch_start + batch_size])
+        batch_generated_responses = generate_text(inputs[batch_start:batch_start + batch_size], num_return_sequences=1)
 
         predictions.extend(batch_generated_responses)
 
@@ -104,9 +100,6 @@ def evaluate_main(model_id, dataset_id, output_dir, max_tokens, batch_size):
         print(f"Max Memory Allocated: {max_memory_allocated / (1024 ** 3):.2f} GB")
         # Empty GPU cache to release memory
         torch.cuda.empty_cache()
-
-    # references = [result['reference'] for result in evaluation_results]
-    # predictions = [result['prediction'] for result in evaluation_results]
 
     # Compute evaluation metrics
     metrics = fast_compute_metrics(references, predictions)
