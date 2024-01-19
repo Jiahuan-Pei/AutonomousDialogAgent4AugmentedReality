@@ -1,9 +1,10 @@
 """
 Submit:
     nohup python evaluation.py > evaluation.output.log 2>&1 &
-    nohup python evaluation.py --dataset_id Jiahuan/vox_arta_lego > llama2_arta_lego_evaluation.output.log 2>&1 &
+    nohup python evaluation.py --dataset_id Jiahuan/vox_arta_lego --model_id meta-llama/Llama-2-7b-chat-hf > evaluation_llama2_arta_lego.log 2>&1 &
     nohup python evaluation.py --dataset_id Jiahuan/vox_arta_lego --model_id Jiahuan/voxreality-arta-lego-llama2-7b-chat > vox_arta_lego_evaluation.output.log 2>&1 &
     nohup python evaluation.py --model_id Jiahuan/voxreality-arta-llama2-7b-chat-v3 > finetune_teach_edh_evaluation.output.log 2>&1 &
+    nohup python evaluation.py --model_id Jiahuan/gpt_teacher-llama2-7b-chat --dataset_id causal-lm/gpt_teacher > finetune_gpt_teacher_evaluation.output.log 2>&1 &
 Check:
     ps aux | grep "evaluation.py"
     watch -n 1 nvidia-smi
@@ -18,11 +19,9 @@ import torch
 import transformers
 from datasets import load_dataset
 import evaluate
-from langchain.llms import HuggingFacePipeline
 import argparse
 from transformers import AutoTokenizer
-
-from utils import Config, load_train_valid_test_datasets, load_model_singleGPU, load_peft_model_singleGPU, formatting_func_inference, load_peft_model, load_base_model
+from utils import load_model_singleGPU, formatting_func_inference
 
 
 def fast_compute_metrics(predictions, references):
@@ -51,9 +50,9 @@ def fast_compute_metrics(predictions, references):
     return corpus_metrics
 
 
-def evaluate_main(model_id, dataset_id, output_dir, max_tokens, batch_size):
+def evaluate_main(model_id, dataset_id, output_dir, max_tokens, batch_size, split='test'):
 
-    test_dataset = load_dataset(dataset_id, split='test', use_auth_token=True)
+    test_dataset = load_dataset(dataset_id, split=split, use_auth_token=True)
 
     model = load_model_singleGPU(model_id)
     # Set the valuation mode of the models
@@ -105,8 +104,6 @@ def evaluate_main(model_id, dataset_id, output_dir, max_tokens, batch_size):
         # Empty GPU cache to release memory
         torch.cuda.empty_cache()
 
-    # references = [result['reference'] for result in evaluation_results]
-    # predictions = [result['prediction'] for result in evaluation_results]
 
     # Compute evaluation metrics
     metrics = fast_compute_metrics(references, predictions)
@@ -140,5 +137,6 @@ if __name__ == '__main__':
     parser.add_argument('--cache_dir', default='/media/Blue2TB3/jpei/cache-huggingface-2/datasets', type=str, help='the name or the abstract path of the dataset')
     parser.add_argument('--max_tokens', default=512, type=int, help='max number of tokens')
     parser.add_argument('--batch_size', default=8, type=int, help='batch size')
+    parser.add_argument('--split', default='test', type=str, help='the split of the dataset to be evaluated.')
     args = parser.parse_args()
     evaluate_main(args.model_id, args.dataset_id, args.output_dir, args.max_tokens, args.batch_size)

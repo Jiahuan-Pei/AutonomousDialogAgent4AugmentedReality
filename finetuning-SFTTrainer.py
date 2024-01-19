@@ -1,10 +1,13 @@
 """
 Submit:
-    nohup python finetuning.py --dataset_id=Jiahuan/vox_arta_lego --base_model_id=meta-llama/Llama-2-7b-chat-hf > finetune_llama2_lego.log 2>&1 &
+    nohup python finetuning.py > finetune.output.log 2>&1 &
+    nohup python finetuning.py --dataset=Jiahuan/vox_arta_lego --model_id_upload Jiahuan/voxreality-arta-lego-llama2-7b-chat > finetune_arta_lego_output.log 2>&1 &
+    nohup python finetuning.py --dataset=Jiahuan/vox_arta_lego --model_id_upload Jiahuan/voxreality-arta-lego-llama2-7b-chat > finetune_arta_lego_output.log 2>&1 &
+    nohup python finetuning.py --dataset=Jiahuan/teach_action --model_id_upload Jiahuan/voxreality-arta-llama2-7b-chat-action > finetune_output_teach_action.log 2>&1 &
 Check:
     ps aux | grep "finetuning.py"
 GPU Usage:
-    19GB / 24GB
+    8912MiB / 24564MiB
 """
 
 # from utils import *
@@ -33,11 +36,10 @@ def formatting_func_training(example):
     """.strip()
     return text
 
-
 def generate_and_tokenize_prompt2(prompt):
     # set tokenizer
     tokenizer = AutoTokenizer.from_pretrained(
-        args.base_model_id,
+        args.model_id,
         padding_side="left",
         add_eos_token=True,
         add_bos_token=True,
@@ -50,11 +52,12 @@ def generate_and_tokenize_prompt2(prompt):
         max_length=args.max_tokens,
         padding="max_length",
     )
+    # result["labels"] = result["input_ids"].copy()
     result["labels"] = result["input_ids"].copy()
     return result
 
 
-def load_train_eval_datasets(dataset_ids, mode='finetuning'):
+def load_train_valid_test_datasets(dataset_ids, mode='train'):
     # Load a dataset and print the first example in the training set
     dataset_list = []
 
@@ -66,20 +69,19 @@ def load_train_eval_datasets(dataset_ids, mode='finetuning'):
         except:
             dataset = load_dataset(dataset_id, split=['train', 'validation[:50%]', 'validation[50%:]'], cache_dir=args.cache_dir)
 
-        # Prepare "train" "eval" dataset for finetuning
         dataset = DatasetDict({"train": dataset[0], "validation": dataset[1], "test": dataset[2]})
         dataset_list.append(dataset)
 
-    if mode == 'finetuning':
+    if mode == 'train':
         # Combine datasets
-        combined_dataset_train = concatenate_datasets([d['train'] for d in dataset_list] + [d['validation'] for d in dataset_list])
-        combined_dataset_eval = concatenate_datasets([d['test'] for d in dataset_list])
+        combined_dataset_train = concatenate_datasets([d['train'] for d in dataset_list])
+        combined_dataset_valid = concatenate_datasets([d['validation'] for d in dataset_list])
 
         # Tokenize dateaset
         tokenized_train_dataset = combined_dataset_train.map(generate_and_tokenize_prompt2)
-        tokenized_eval_dataset = combined_dataset_eval.map(generate_and_tokenize_prompt2)
+        tokenized_val_dataset = combined_dataset_valid.map(generate_and_tokenize_prompt2)
 
-        return tokenized_train_dataset, tokenized_eval_dataset
+        return tokenized_train_dataset, tokenized_val_dataset
     elif mode == 'test':
         test_dataset_list = [d['test'] for d in dataset_list]
         return test_dataset_list
@@ -176,7 +178,6 @@ def wandb(wandb_project):
 
 
 def main_finetune(config):
-    print(config)
     # fix randomness
     set_random_seed()
 
@@ -185,21 +186,21 @@ def main_finetune(config):
 
     # set tokenizer
     tokenizer = AutoTokenizer.from_pretrained(
-        config.base_model_id,
+        config.model_id,
         padding_side="left",
         add_eos_token=True,
         add_bos_token=True,
     )
     tokenizer.pad_token = tokenizer.eos_token
 
-    tokenized_train_dataset, tokenized_eval_dataset = load_train_eval_datasets(config.dataset_id)
+    tokenized_train_dataset, tokenized_valid_dataset = load_train_valid_test_datasets(config.dataset_id)
 
-    run_name = f'{config.base_model_id}-{config.dataset_id.split("/")[-1]}-{datetime.now().strftime("%Y-%m-%d-%H-%M")}'
+    run_name = f'{config.model_id}-{config.dataset_id.split("/")[-1]}-{datetime.now().strftime("%Y-%m-%d-%H-%M")}'
     ft_model_id = f'{config.root_dir}/{config.project_name}/{run_name}'  # /media/PampusData/vox-finetune/[run_name]
 
     # Load base model
     model = AutoModelForCausalLM.from_pretrained(
-        config.base_model_id,
+        config.model_id,
         return_dict=True,
         quantization_config=bnb_config,
         device_map="auto",
@@ -235,12 +236,11 @@ def main_finetune(config):
     trainer = transformers.Trainer(
         model=model,
         train_dataset=tokenized_train_dataset,
-        eval_dataset=tokenized_eval_dataset,
+        eval_dataset=tokenized_valid_dataset,
         # compute_metrics=compute_metrics, # OOM
         args=transformers.TrainingArguments(
-            seed=42,
             output_dir=ft_model_id,
-            warmup_steps=10,
+            warmup_steps=1,
             per_device_train_batch_size=16, # [2, 4]
             gradient_accumulation_steps=16, # 1
             gradient_checkpointing=True,
@@ -252,19 +252,18 @@ def main_finetune(config):
             bf16=True,
             optim="paged_adamw_8bit",
             logging_dir="./logs",  # Directory for storing logs
-            # save_strategy="steps",  # Save the model checkpoint every logging step
-            # save_steps=50,  # Save checkpoints every 50 steps
-            # evaluation_strategy="steps",  # Evaluate the model every logging step
-            save_strategy="epoch",
-            # eval_steps=1,  # Evaluate and save checkpoints every 50 steps
-            logging_steps=1,
-            evaluation_strategy="epoch",  # Evaluate the model every logging step
+            save_strategy="steps",  # Save the model checkpoint every logging step
+            # save_strategy="epoch",
+            save_steps=50,  # Save checkpoints every 50 steps
+            evaluation_strategy="steps",  # Evaluate the model every logging step
+            # evaluation_strategy="epoch",  # Evaluate the model every logging step
+            eval_steps=1,  # Evaluate and save checkpoints every 50 steps
             do_train=True,
             do_eval=True,  # Perform evaluation at the end of training
+            logging_steps=1,
             report_to="wandb",  # Comment this out if you don't want to use weights & baises
             run_name=run_name,  # Name of the W&B run (optional)，
-            load_best_model_at_end=True,
-            metric_for_best_model='loss'  # Early stopping when the training loss does not decrease anymore.
+            load_best_model_at_end=True
         ),
         data_collator=transformers.DataCollatorForLanguageModeling(tokenizer, mlm=False),
         callbacks=[EarlyStoppingCallback(early_stopping_patience=50, early_stopping_threshold=0.01)]
@@ -294,34 +293,32 @@ def main_finetune(config):
     print(f"Perplexity: {math.exp(eval_results['eval_loss']):.2f}")
 
     ## Upload to Huggingface Hub
-    ft_model_id_upload = f'{config.model_id_upload_prefix}-{config.model_id.split("/")[-1]}-{config.dataset_id.split("/")[-1]}' # prefix-basemodel-dataset
-    tokenizer.push_to_hub(ft_model_id_upload, use_auth_token=True)
-    merge_and_upload(ft_model_id, ft_model_id_upload)
+    tokenizer.push_to_hub(config.model_id_upload, use_auth_token=True)
+    merge_and_upload(ft_model_id, args)
 
 
-def merge_and_upload(ft_model_id_local, ft_model_id_upload):
+def merge_and_upload(ft_model_id, args):
     # Empty GPU cache to release memory
     torch.cuda.empty_cache()
+    # ft_model_id = f'{args.output_dir}/llama-2-7b-chat-teach-2023-12-15-16-38'
     model = AutoPeftModelForCausalLM.from_pretrained(
-        ft_model_id_local,
+        ft_model_id,
         low_cpu_mem_usage=True,
         device_map='auto',
         torch_dtype=torch.bfloat16
     )
     # Merge the base model and the adapter
     model = model.merge_and_unload(progressbar=True)
-    model.save_pretrained(ft_model_id_local)
+    model.save_pretrained(ft_model_id)
     # safetensors
-    model.push_to_hub(ft_model_id_upload, use_auth_token=True, safe_serialization=True)
+    model.push_to_hub(args.model_id_upload, use_auth_token=True, safe_serialization=True)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--base_model_id', default='meta-llama/Llama-2-7b-chat-hf', type=str, help='the name or the abstract path of the base model')
-    parser.add_argument('--dataset_id', default='Jiahuan/vox_arta_lego', type=str, help='the name or the abstract path of the dataset, or a concaticated list')
-    parser.add_argument('--model_id_upload_prefix', default='Jiahuan/voxreality-arta', type=str, help='the name or the abstract path of the model to be uploaded to hub')
-    parser.add_argument('--model_id_upload', default=None, type=str, help='Only assign it when you want to upload a local ft_model_id')
-    parser.add_argument('--ft_model_id', default=None, type=str, help='Only assign it when you want to upload a local ft_model_id')
+    parser.add_argument('--model_id', default='meta-llama/Llama-2-7b-chat-hf', type=str, help='the name or the abstract path of the base model')
+    parser.add_argument('--model_id_upload', default='Jiahuan/voxreality-arta-llama2-7b-chat-v3', type=str, help='the name or the abstract path of the model to be uploaded to hub')
+    parser.add_argument('--dataset_id', default='Jiahuan/teach_edh', type=str, help='the name or the abstract path of the dataset, or a concaticated list')
     parser.add_argument('--root_dir', default='/media/Blue2TB3/jpei/', type=str, help='the name of the root dir for storage')
     parser.add_argument('--project_name', default='vox-finetune', type=str, help='the name or the project')
     parser.add_argument('--output_dir', default='/media/Blue2TB3/jpei/vox-finetune/', type=str, help='the name or the abstract path of the dataset')
