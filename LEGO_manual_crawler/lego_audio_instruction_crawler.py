@@ -63,6 +63,7 @@ def download_resource(url, base_manual_dir, folder_name=None):
             # Parse the HTML content of the page and download images
             soup = BeautifulSoup(resource_response.text, 'html.parser')
 
+
             # Find all image tags in the manual-table-container and Download and save each image
             img_urls = [img_tag.get('src') for img_tag in soup.find('div', class_='manual-table-container').find_all('img')]
             for img_url in tqdm(img_urls):
