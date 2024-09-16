@@ -44,17 +44,6 @@ from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv())
 ```
 
-## Lang Chain Server (Optional)
-You only need this if you want to deploy DA on a local/cloud server. If you only want to play with interactive demo, you can skip this section.
-```shell
-# Theoretically, you can install it with the following one line, but it does not work for me (See https://github.com/jina-ai/langchain-serve/issues/143).
-# pip install langchain-serve
-git clone https://github.com/jina-ai/langchain-serve.git
-cd langchain-serve
-# change jina==3.20.2 in requirements.txt
-pip install .
-```
-
 [//]: # (## 2.2 Llama-2 + toolformer)
 
 [//]: # (Download and install llama2.)
