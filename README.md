@@ -5,6 +5,8 @@ There are three key phrases as follows:
 - Phase 2: Create XRTA dataset by asking trainees to play with the assistant using the workflow. See code in [LEGO_manual_crawler](LEGO_manual_crawler) and [LEGO_data_simulation](LEGO_data_simulation).
 - Phase 3: Finetune LLMs (such as llama2) and replace them in the workflow. 
 
+We release our [dataset](https://osf.io/download/2x5yq/) for open science.
+
 [//]: # (- [godel]&#40;https://github.com/microsoft/GODEL&#41;)
 
 # 2. Setup
